@@ -1,0 +1,132 @@
+using AccesoDatos.Context;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using WebApi.Services;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// DbContext
+builder.Services.AddDbContext<RestauranteDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Services
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<HashService>();
+builder.Services.AddScoped<JwtService>();
+builder.Services.AddScoped<MenuService>();
+builder.Services.AddScoped<MesasService>();
+builder.Services.AddScoped<TurnosService>();
+builder.Services.AddScoped<OrdenesService>();
+builder.Services.AddScoped<CocinaService>();
+builder.Services.AddScoped<PagosService>();
+builder.Services.AddScoped<UsuariosService>();
+builder.Services.AddScoped<ConfigService>();
+builder.Services.AddScoped<InsumosService>();
+builder.Services.AddScoped<RecetasService>();
+builder.Services.AddScoped<ReportesService>();
+builder.Services.AddScoped<FacturasService>();
+builder.Services.AddScoped<AuditoriaService>();
+builder.Services.AddSingleton<RealtimeNotifier>();
+
+// SignalR — eventos en tiempo real para POS y cocina
+builder.Services.AddSignalR();
+
+// JWT Authentication — el secreto vive fuera del código:
+// dev: dotnet user-secrets set "Jwt:Secret" "..." · prod: variable de entorno Jwt__Secret
+var jwtSecret = builder.Configuration["Jwt:Secret"];
+if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:Secret no configurado (mínimo 32 caracteres). " +
+        "En desarrollo: dotnet user-secrets set \"Jwt:Secret\" \"<valor>\" — en producción: variable de entorno Jwt__Secret.");
+}
+var key = Encoding.UTF8.GetBytes(jwtSecret);
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
+});
+
+builder.Services.AddAuthorization();
+
+// CORS para Next.js
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+});
+
+// Controllers
+builder.Services.AddControllers();
+
+// Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Ingresa el token JWT en el formato: Bearer {token}"
+    });
+
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseCors("AllowFrontend");
+
+app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+app.MapHub<WebApi.Hubs.RestauranteHub>("/hubs/restaurante");
+
+app.Run();

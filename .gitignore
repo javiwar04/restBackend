@@ -1,0 +1,21 @@
+# Build
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# Paquetes
+packages/
+*.nupkg
+
+# Logs y temporales
+*.log
+TestResults/
