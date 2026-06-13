@@ -18,11 +18,12 @@ public class RealtimeNotifier
     }
 
     /// <param name="evento">nueva | actualizada | lista | pagada | cancelada</param>
-    public async Task OrdenCambioAsync(string evento, string ordenId)
+    /// <param name="numeroMesa">opcional; permite al POS mostrar "Mesa 5 lista" sin re-consultar</param>
+    public async Task OrdenCambioAsync(string evento, string ordenId, int? numeroMesa = null)
     {
         try
         {
-            await _hub.Clients.All.SendAsync("ordenes:cambio", new { evento, ordenId });
+            await _hub.Clients.All.SendAsync("ordenes:cambio", new { evento, ordenId, numeroMesa });
         }
         catch
         {

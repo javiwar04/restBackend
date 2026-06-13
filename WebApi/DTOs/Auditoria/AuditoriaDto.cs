@@ -16,3 +16,9 @@ public class AuditoriaListDto
     public int Total { get; set; }
     public List<AuditoriaDto> Datos { get; set; } = new();
 }
+
+public class CreateAuditoriaDto
+{
+    public string Accion { get; set; } = null!;
+    public string? Descripcion { get; set; }
+}

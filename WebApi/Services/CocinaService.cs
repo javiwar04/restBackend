@@ -20,6 +20,9 @@ public class CocinaService
         var ordenes = await _context.Ordenes
             .Include(o => o.OrdenItems)
             .ThenInclude(i => i.OrdenItemModificadores)
+            .Include(o => o.OrdenItems)
+            .ThenInclude(i => i.Platillo)
+            .ThenInclude(p => p!.Categoria)
             .Where(o => o.Estado == "pendiente" || o.Estado == "en_cocina")
             .OrderBy(o => o.CreadoEn)
             .ToListAsync();
@@ -51,6 +54,7 @@ public class CocinaService
                 Cantidad = i.Cantidad,
                 Notas = i.Notas,
                 Estado = i.Estado,
+                Categoria = i.Platillo != null ? i.Platillo.Categoria.Nombre : null,
                 Modificadores = i.OrdenItemModificadores.Select(m => new ModificadorItemDto
                 {
                     GrupoNombre = m.GrupoNombre,
@@ -88,7 +92,7 @@ public class CocinaService
         orden.ActualizadoEn = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-        await _realtime.OrdenCambioAsync("lista", ordenId);
+        await _realtime.OrdenCambioAsync("lista", ordenId, orden.NumeroMesa);
 
         return true;
     }

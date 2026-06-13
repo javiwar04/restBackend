@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using WebApi.DTOs;
 using WebApi.DTOs.Auth;
@@ -19,6 +20,7 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("login")]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
@@ -28,7 +30,7 @@ public class AuthController : ControllerBase
         var result = await _authService.LoginAsync(request.Username, request.Pin);
 
         if (result == null)
-            return Unauthorized(new ErrorResponse { Error = "Credenciales inválidas" });
+            return Unauthorized(new ErrorResponse { Error = "Credenciales invï¿½lidas" });
 
         return Ok(result);
     }
@@ -38,7 +40,7 @@ public class AuthController : ControllerBase
     public IActionResult Logout()
     {
         // Con JWT stateless, simplemente devolvemos OK
-        // El frontend eliminará el token
+        // El frontend eliminarï¿½ el token
         return Ok(new { ok = true });
     }
 

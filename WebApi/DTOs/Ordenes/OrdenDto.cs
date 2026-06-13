@@ -30,6 +30,8 @@ public class OrdenItemDto
     public short Cantidad { get; set; }
     public string? Notas { get; set; }
     public string Estado { get; set; } = null!;
+    // Categoria del platillo: usada por el KDS para filtrar por estacion (parrilla/bebidas/etc.)
+    public string? Categoria { get; set; }
     public List<ModificadorItemDto> Modificadores { get; set; } = new();
 }
 
