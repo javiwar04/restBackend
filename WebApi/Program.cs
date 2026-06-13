@@ -9,6 +9,14 @@ using WebApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// El secreto JWT vive en user-secrets (dev) o variables de entorno (prod).
+// Por defecto .NET solo carga user-secrets en el entorno Development; lo
+// cargamos en cualquier entorno para que la app arranque igual desde VS,
+// `dotnet run` o el DLL publicado. Reañadimos las variables de entorno al
+// final para que en producción (Jwt__Secret) sigan teniendo prioridad.
+builder.Configuration.AddUserSecrets(typeof(Program).Assembly, optional: true);
+builder.Configuration.AddEnvironmentVariables();
+
 // DbContext
 builder.Services.AddDbContext<RestauranteDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
