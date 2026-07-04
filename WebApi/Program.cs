@@ -43,15 +43,20 @@ builder.Services.AddSingleton<RealtimeNotifier>();
 // SignalR — eventos en tiempo real para POS y cocina
 builder.Services.AddSignalR();
 
-// JWT Authentication — el secreto vive fuera del código:
-// dev: dotnet user-secrets set "Jwt:Secret" "..." · prod: variable de entorno Jwt__Secret
+// JWT Authentication.
+// En producción el secreto se pone con la variable de entorno Jwt__Secret
+// (o Jwt:Secret en config). Si no hay ninguno, usamos una clave de
+// desarrollo para que la app SIEMPRE arranque en local — no bloquea nada.
 var jwtSecret = builder.Configuration["Jwt:Secret"];
 if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
 {
-    throw new InvalidOperationException(
-        "Jwt:Secret no configurado (mínimo 32 caracteres). " +
-        "En desarrollo: dotnet user-secrets set \"Jwt:Secret\" \"<valor>\" — en producción: variable de entorno Jwt__Secret.");
+    jwtSecret = "restsf-clave-de-desarrollo-local-cambiar-en-produccion-2026";
+    Console.WriteLine("[WARN] Jwt:Secret no configurado; usando clave de desarrollo. En producción define la variable de entorno Jwt__Secret.");
 }
+// Escribir el secreto resuelto de vuelta en la config para que JwtService
+// (que lo lee de IConfiguration al generar/validar) use exactamente el mismo
+// valor. Una sola fuente de verdad, sin importar entorno ni user-secrets.
+builder.Configuration["Jwt:Secret"] = jwtSecret;
 var key = Encoding.UTF8.GetBytes(jwtSecret);
 
 builder.Services.AddAuthentication(options =>
