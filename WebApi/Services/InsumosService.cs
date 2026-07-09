@@ -37,7 +37,20 @@ public class InsumosService
             query = query.Where(i => i.EstablecimientoId == establecimientoId);
 
         var insumos = await query.OrderBy(i => i.Nombre).ToListAsync();
-        return insumos.Select(Map).ToList();
+
+        // Nombre de la sucursal para la vista consolidada del admin
+        var estIds = insumos.Where(i => i.EstablecimientoId != null).Select(i => i.EstablecimientoId!).Distinct().ToList();
+        var nombres = await _context.Establecimientos
+            .Where(e => estIds.Contains(e.Id))
+            .ToDictionaryAsync(e => e.Id, e => e.Nombre);
+
+        return insumos.Select(i =>
+        {
+            var d = Map(i);
+            if (i.EstablecimientoId != null && nombres.TryGetValue(i.EstablecimientoId, out var n))
+                d.EstablecimientoNombre = n;
+            return d;
+        }).ToList();
     }
 
     public async Task<InsumoDto?> GetInsumoByIdAsync(string id)

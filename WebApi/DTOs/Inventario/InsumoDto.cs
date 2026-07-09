@@ -10,6 +10,7 @@ public class InsumoDto
     public decimal CostoUnitario { get; set; }
     public bool Activo { get; set; }
     public string? EstablecimientoId { get; set; }
+    public string? EstablecimientoNombre { get; set; }
     public DateTime? ActualizadoEn { get; set; }
 }
 

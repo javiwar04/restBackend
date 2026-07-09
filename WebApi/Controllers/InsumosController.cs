@@ -21,9 +21,11 @@ public class InsumosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetInsumos()
+    public async Task<IActionResult> GetInsumos([FromQuery] string? establecimiento = null)
     {
-        var insumos = await _insumosService.GetInsumosAsync(HttpContext.GetEstablecimiento());
+        // Precedencia: filtro explícito (admin) > sucursal activa del header (operador)
+        var estId = !string.IsNullOrWhiteSpace(establecimiento) ? establecimiento : HttpContext.GetEstablecimiento();
+        var insumos = await _insumosService.GetInsumosAsync(estId);
         return Ok(insumos);
     }
 
