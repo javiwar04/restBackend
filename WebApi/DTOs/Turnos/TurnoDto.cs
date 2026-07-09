@@ -5,6 +5,7 @@ public class TurnoDto
     public string Id { get; set; } = null!;
     public string UsuarioId { get; set; } = null!;
     public string UsuarioNombre { get; set; } = null!;
+    public string? EstablecimientoId { get; set; }
     public DateTime Inicio { get; set; }
     public DateTime? Fin { get; set; }
     public decimal EfectivoInicial { get; set; }

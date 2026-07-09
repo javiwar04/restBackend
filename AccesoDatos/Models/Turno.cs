@@ -11,6 +11,8 @@ public partial class Turno
 
     public string UsuarioNombre { get; set; } = null!;
 
+    public string? EstablecimientoId { get; set; }
+
     public DateTime Inicio { get; set; }
 
     public DateTime? Fin { get; set; }

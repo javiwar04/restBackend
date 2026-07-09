@@ -31,6 +31,7 @@ public class TurnosService
             Id = turno.Id,
             UsuarioId = turno.UsuarioId,
             UsuarioNombre = turno.UsuarioNombre,
+            EstablecimientoId = turno.EstablecimientoId,
             Inicio = turno.Inicio,
             Fin = turno.Fin,
             EfectivoInicial = turno.EfectivoInicial,
@@ -46,10 +47,15 @@ public class TurnosService
         };
     }
 
-    public async Task<TurnoDto?> GetTurnoActivoAsync(string usuarioId)
+    public async Task<TurnoDto?> GetTurnoActivoAsync(string usuarioId, string? establecimientoId = null)
     {
-        var turno = await _context.Turnos
-            .FirstOrDefaultAsync(t => t.UsuarioId == usuarioId && t.Fin == null);
+        var query = _context.Turnos.Where(t => t.UsuarioId == usuarioId && t.Fin == null);
+
+        // La caja activa es por sucursal: cada local su turno independiente
+        if (!string.IsNullOrEmpty(establecimientoId))
+            query = query.Where(t => t.EstablecimientoId == establecimientoId);
+
+        var turno = await query.FirstOrDefaultAsync();
 
         return turno == null ? null : await BuildTurnoDtoAsync(turno);
     }
@@ -113,19 +119,22 @@ public class TurnosService
             .ToListAsync();
     }
 
-    public async Task<TurnoDto> CrearTurnoAsync(string usuarioId, string usuarioNombre, decimal efectivoInicial)
+    public async Task<TurnoDto> CrearTurnoAsync(string usuarioId, string usuarioNombre, decimal efectivoInicial, string? establecimientoId)
     {
+        // Turno activo por usuario Y sucursal (una caja abierta por local)
         var turnoExistente = await _context.Turnos
-            .AnyAsync(t => t.UsuarioId == usuarioId && t.Fin == null);
+            .AnyAsync(t => t.UsuarioId == usuarioId && t.Fin == null
+                && (establecimientoId == null || t.EstablecimientoId == establecimientoId));
 
         if (turnoExistente)
-            throw new InvalidOperationException("Ya existe un turno activo para este usuario");
+            throw new InvalidOperationException("Ya existe un turno activo para este usuario en esta sucursal");
 
         var turno = new Turno
         {
             Id = Guid.NewGuid().ToString(),
             UsuarioId = usuarioId,
             UsuarioNombre = usuarioNombre,
+            EstablecimientoId = establecimientoId,
             Inicio = DateTime.UtcNow,
             EfectivoInicial = efectivoInicial,
             TotalVentas = 0,

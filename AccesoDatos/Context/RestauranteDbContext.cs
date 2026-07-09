@@ -972,6 +972,9 @@ public partial class RestauranteDbContext : DbContext
                 .HasDefaultValueSql("(newid())")
                 .HasColumnName("id");
             entity.Property(e => e.Fin).HasColumnName("fin");
+            entity.Property(e => e.EstablecimientoId)
+                .HasMaxLength(36)
+                .HasColumnName("establecimiento_id");
             entity.Property(e => e.EfectivoInicial)
                 .HasColumnType("decimal(12, 2)")
                 .HasColumnName("efectivo_inicial");

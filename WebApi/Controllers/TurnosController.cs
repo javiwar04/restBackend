@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WebApi.DTOs;
 using WebApi.DTOs.Turnos;
+using WebApi.Extensions;
 using WebApi.Services;
 
 namespace WebApi.Controllers;
@@ -26,7 +27,7 @@ public class TurnosController : ControllerBase
         if (string.IsNullOrEmpty(usuarioId))
             return Unauthorized(new ErrorResponse { Error = "No autorizado" });
 
-        var turno = await _turnosService.GetTurnoActivoAsync(usuarioId);
+        var turno = await _turnosService.GetTurnoActivoAsync(usuarioId, HttpContext.GetEstablecimiento());
 
         if (turno == null)
             return NotFound(new ErrorResponse { Error = "Sin turno activo" });
@@ -57,9 +58,13 @@ public class TurnosController : ControllerBase
         if (dto.EfectivoInicial < 0)
             return BadRequest(new ErrorResponse { Error = "El efectivo inicial no puede ser negativo" });
 
+        var establecimientoId = HttpContext.GetEstablecimiento();
+        if (string.IsNullOrEmpty(establecimientoId))
+            return BadRequest(new ErrorResponse { Error = "Seleccione una sucursal antes de abrir la caja" });
+
         try
         {
-            var turno = await _turnosService.CrearTurnoAsync(usuarioId, usuarioNombre, dto.EfectivoInicial);
+            var turno = await _turnosService.CrearTurnoAsync(usuarioId, usuarioNombre, dto.EfectivoInicial, establecimientoId);
             return CreatedAtAction(nameof(GetTurno), new { id = turno.Id }, turno);
         }
         catch (InvalidOperationException ex)
