@@ -15,6 +15,8 @@ public partial class Turno
 
     public DateTime? Fin { get; set; }
 
+    public decimal EfectivoInicial { get; set; }
+
     public decimal TotalVentas { get; set; }
 
     public int TotalOrdenes { get; set; }
@@ -28,6 +30,8 @@ public partial class Turno
     public string? Notas { get; set; }
 
     public virtual ICollection<CorteCaja> CorteCajas { get; set; } = new List<CorteCaja>();
+
+    public virtual ICollection<MovimientoCaja> MovimientosCaja { get; set; } = new List<MovimientoCaja>();
 
     public virtual ICollection<Ordene> Ordenes { get; set; } = new List<Ordene>();
 

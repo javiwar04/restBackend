@@ -76,12 +76,41 @@ public class TurnosController : ControllerBase
 
         try
         {
+            // El efectivo inicial lo lee el servicio del propio turno (persistido)
             var result = await _turnosService.CerrarTurnoAsync(id, dto.EfectivoFinalReal, dto.Notas, 0);
 
             if (result == null)
                 return NotFound(new ErrorResponse { Error = "Turno no encontrado" });
 
             return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ErrorResponse { Error = ex.Message });
+        }
+    }
+
+    // ── Movimientos de caja (entradas/retiros) ──────────────────────────────
+    [HttpGet("{id}/movimientos")]
+    public async Task<IActionResult> GetMovimientos(string id)
+    {
+        var movs = await _turnosService.GetMovimientosAsync(id);
+        return Ok(movs);
+    }
+
+    [HttpPost("{id}/movimientos")]
+    public async Task<IActionResult> AddMovimiento(string id, [FromBody] CreateMovimientoCajaDto dto)
+    {
+        var usuarioId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var usuarioNombre = User.FindFirst(ClaimTypes.Name)?.Value;
+
+        try
+        {
+            var mov = await _turnosService.AddMovimientoAsync(id, dto, usuarioId, usuarioNombre);
+            if (mov == null)
+                return NotFound(new ErrorResponse { Error = "Turno no encontrado" });
+
+            return Ok(mov);
         }
         catch (InvalidOperationException ex)
         {

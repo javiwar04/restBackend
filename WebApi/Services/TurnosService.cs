@@ -14,13 +14,17 @@ public class TurnosService
         _context = context;
     }
 
-    public async Task<TurnoDto?> GetTurnoActivoAsync(string usuarioId)
+    // Suma entradas/retiros del turno y arma el DTO con el efectivo en caja
+    private async Task<TurnoDto> BuildTurnoDtoAsync(Turno turno)
     {
-        var turno = await _context.Turnos
-            .FirstOrDefaultAsync(t => t.UsuarioId == usuarioId && t.Fin == null);
+        var movs = await _context.MovimientosCaja
+            .Where(m => m.TurnoId == turno.Id)
+            .GroupBy(m => m.Tipo)
+            .Select(g => new { Tipo = g.Key, Total = g.Sum(x => x.Monto) })
+            .ToListAsync();
 
-        if (turno == null)
-            return null;
+        var entradas = movs.FirstOrDefault(m => m.Tipo == "entrada")?.Total ?? 0;
+        var retiros = movs.FirstOrDefault(m => m.Tipo == "retiro")?.Total ?? 0;
 
         return new TurnoDto
         {
@@ -29,36 +33,84 @@ public class TurnosService
             UsuarioNombre = turno.UsuarioNombre,
             Inicio = turno.Inicio,
             Fin = turno.Fin,
+            EfectivoInicial = turno.EfectivoInicial,
             TotalVentas = turno.TotalVentas,
             TotalOrdenes = turno.TotalOrdenes,
             VentasEfectivo = turno.VentasEfectivo,
             VentasTarjeta = turno.VentasTarjeta,
             VentasTransfer = turno.VentasTransfer,
+            TotalEntradas = entradas,
+            TotalRetiros = retiros,
+            EfectivoEnCaja = turno.EfectivoInicial + turno.VentasEfectivo + entradas - retiros,
             Notas = turno.Notas
         };
+    }
+
+    public async Task<TurnoDto?> GetTurnoActivoAsync(string usuarioId)
+    {
+        var turno = await _context.Turnos
+            .FirstOrDefaultAsync(t => t.UsuarioId == usuarioId && t.Fin == null);
+
+        return turno == null ? null : await BuildTurnoDtoAsync(turno);
     }
 
     public async Task<TurnoDto?> GetTurnoByIdAsync(string id)
     {
         var turno = await _context.Turnos.FindAsync(id);
 
-        if (turno == null)
-            return null;
+        return turno == null ? null : await BuildTurnoDtoAsync(turno);
+    }
 
-        return new TurnoDto
+    public async Task<MovimientoCajaDto?> AddMovimientoAsync(string turnoId, CreateMovimientoCajaDto dto, string? usuarioId, string? usuarioNombre)
+    {
+        var turno = await _context.Turnos.FindAsync(turnoId);
+        if (turno == null) return null;
+        if (turno.Fin != null) throw new InvalidOperationException("El turno ya está cerrado");
+        if (dto.Tipo != "entrada" && dto.Tipo != "retiro") throw new InvalidOperationException("Tipo inválido (entrada/retiro)");
+        if (dto.Monto <= 0) throw new InvalidOperationException("El monto debe ser mayor a 0");
+        if (string.IsNullOrWhiteSpace(dto.Motivo)) throw new InvalidOperationException("El motivo es requerido");
+
+        var mov = new MovimientoCaja
         {
-            Id = turno.Id,
-            UsuarioId = turno.UsuarioId,
-            UsuarioNombre = turno.UsuarioNombre,
-            Inicio = turno.Inicio,
-            Fin = turno.Fin,
-            TotalVentas = turno.TotalVentas,
-            TotalOrdenes = turno.TotalOrdenes,
-            VentasEfectivo = turno.VentasEfectivo,
-            VentasTarjeta = turno.VentasTarjeta,
-            VentasTransfer = turno.VentasTransfer,
-            Notas = turno.Notas
+            TurnoId = turnoId,
+            Tipo = dto.Tipo,
+            Monto = dto.Monto,
+            Motivo = dto.Motivo.Trim(),
+            UsuarioId = usuarioId,
+            UsuarioNombre = usuarioNombre,
+            RegistradoEn = DateTime.UtcNow
         };
+        _context.MovimientosCaja.Add(mov);
+        await _context.SaveChangesAsync();
+
+        return new MovimientoCajaDto
+        {
+            Id = mov.Id,
+            TurnoId = mov.TurnoId,
+            Tipo = mov.Tipo,
+            Monto = mov.Monto,
+            Motivo = mov.Motivo,
+            UsuarioNombre = mov.UsuarioNombre,
+            RegistradoEn = mov.RegistradoEn
+        };
+    }
+
+    public async Task<List<MovimientoCajaDto>> GetMovimientosAsync(string turnoId)
+    {
+        return await _context.MovimientosCaja
+            .Where(m => m.TurnoId == turnoId)
+            .OrderBy(m => m.RegistradoEn)
+            .Select(m => new MovimientoCajaDto
+            {
+                Id = m.Id,
+                TurnoId = m.TurnoId,
+                Tipo = m.Tipo,
+                Monto = m.Monto,
+                Motivo = m.Motivo,
+                UsuarioNombre = m.UsuarioNombre,
+                RegistradoEn = m.RegistradoEn
+            })
+            .ToListAsync();
     }
 
     public async Task<TurnoDto> CrearTurnoAsync(string usuarioId, string usuarioNombre, decimal efectivoInicial)
@@ -75,6 +127,7 @@ public class TurnosService
             UsuarioId = usuarioId,
             UsuarioNombre = usuarioNombre,
             Inicio = DateTime.UtcNow,
+            EfectivoInicial = efectivoInicial,
             TotalVentas = 0,
             TotalOrdenes = 0,
             VentasEfectivo = 0,
@@ -85,19 +138,7 @@ public class TurnosService
         _context.Turnos.Add(turno);
         await _context.SaveChangesAsync();
 
-        return new TurnoDto
-        {
-            Id = turno.Id,
-            UsuarioId = turno.UsuarioId,
-            UsuarioNombre = turno.UsuarioNombre,
-            Inicio = turno.Inicio,
-            Fin = turno.Fin,
-            TotalVentas = 0,
-            TotalOrdenes = 0,
-            VentasEfectivo = 0,
-            VentasTarjeta = 0,
-            VentasTransfer = 0
-        };
+        return await BuildTurnoDtoAsync(turno);
     }
 
     public async Task<TurnoConCorteDto?> CerrarTurnoAsync(string turnoId, decimal efectivoFinalReal, string? notas, decimal efectivoInicial)
@@ -148,6 +189,12 @@ public class TurnosService
         var ventasTarjeta = pagosDetalle.FirstOrDefault(p => p.Metodo == "card")?.Total ?? 0;
         var ventasTransfer = pagosDetalle.FirstOrDefault(p => p.Metodo == "transfer")?.Total ?? 0;
 
+        // Movimientos de caja del turno (entradas/retiros)
+        var entradas = await _context.MovimientosCaja
+            .Where(m => m.TurnoId == turnoId && m.Tipo == "entrada").SumAsync(m => (decimal?)m.Monto) ?? 0;
+        var retiros = await _context.MovimientosCaja
+            .Where(m => m.TurnoId == turnoId && m.Tipo == "retiro").SumAsync(m => (decimal?)m.Monto) ?? 0;
+
         turno.Fin = DateTime.UtcNow;
         turno.TotalVentas = totales?.TotalVentas ?? 0;
         turno.TotalOrdenes = totales?.TotalOrdenes ?? 0;
@@ -156,7 +203,9 @@ public class TurnosService
         turno.VentasTransfer = ventasTransfer;
         turno.Notas = notas;
 
-        var efectivoFinalSistema = efectivoInicial + ventasEfectivo;
+        // El efectivo inicial real es el que se guardo al abrir el turno
+        var efectivoInicialReal = turno.EfectivoInicial;
+        var efectivoFinalSistema = efectivoInicialReal + ventasEfectivo + entradas - retiros;
 
         var corte = new CorteCaja
         {
@@ -166,7 +215,7 @@ public class TurnosService
             UsuarioNombre = turno.UsuarioNombre,
             FechaInicio = turno.Inicio,
             FechaFin = turno.Fin.Value,
-            EfectivoInicial = efectivoInicial,
+            EfectivoInicial = efectivoInicialReal,
             EfectivoFinalSistema = efectivoFinalSistema,
             EfectivoFinalReal = efectivoFinalReal,
             TotalVentas = turno.TotalVentas,
@@ -186,20 +235,7 @@ public class TurnosService
 
         return new TurnoConCorteDto
         {
-            Turno = new TurnoDto
-            {
-                Id = turno.Id,
-                UsuarioId = turno.UsuarioId,
-                UsuarioNombre = turno.UsuarioNombre,
-                Inicio = turno.Inicio,
-                Fin = turno.Fin,
-            TotalVentas = turno.TotalVentas,
-            TotalOrdenes = turno.TotalOrdenes,
-            VentasEfectivo = turno.VentasEfectivo,
-            VentasTarjeta = turno.VentasTarjeta,
-            VentasTransfer = turno.VentasTransfer,
-            Notas = turno.Notas
-            },
+            Turno = await BuildTurnoDtoAsync(turno),
             Corte = new CorteDto
             {
                 Id = corte.Id,

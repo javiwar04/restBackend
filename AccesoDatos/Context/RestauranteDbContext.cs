@@ -70,6 +70,8 @@ public partial class RestauranteDbContext : DbContext
 
     public virtual DbSet<Turno> Turnos { get; set; }
 
+    public virtual DbSet<MovimientoCaja> MovimientosCaja { get; set; }
+
     public virtual DbSet<Usuario> Usuarios { get; set; }
 
     public virtual DbSet<VwMesero> VwMeseros { get; set; }
@@ -963,6 +965,9 @@ public partial class RestauranteDbContext : DbContext
                 .HasDefaultValueSql("(newid())")
                 .HasColumnName("id");
             entity.Property(e => e.Fin).HasColumnName("fin");
+            entity.Property(e => e.EfectivoInicial)
+                .HasColumnType("decimal(12, 2)")
+                .HasColumnName("efectivo_inicial");
             entity.Property(e => e.Inicio)
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("inicio");
@@ -993,6 +998,41 @@ public partial class RestauranteDbContext : DbContext
                 .HasForeignKey(d => d.UsuarioId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Turnos_Usuario");
+        });
+
+        modelBuilder.Entity<MovimientoCaja>(entity =>
+        {
+            entity.ToTable("Movimientos_Caja");
+
+            entity.HasIndex(e => new { e.TurnoId, e.RegistradoEn }, "IX_MovCaja_Turno");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TurnoId)
+                .HasMaxLength(36)
+                .HasColumnName("turno_id");
+            entity.Property(e => e.Tipo)
+                .HasMaxLength(10)
+                .HasColumnName("tipo");
+            entity.Property(e => e.Monto)
+                .HasColumnType("decimal(12, 2)")
+                .HasColumnName("monto");
+            entity.Property(e => e.Motivo)
+                .HasMaxLength(300)
+                .HasColumnName("motivo");
+            entity.Property(e => e.UsuarioId)
+                .HasMaxLength(36)
+                .HasColumnName("usuario_id");
+            entity.Property(e => e.UsuarioNombre)
+                .HasMaxLength(150)
+                .HasColumnName("usuario_nombre");
+            entity.Property(e => e.RegistradoEn)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("registrado_en");
+
+            entity.HasOne(d => d.Turno).WithMany(p => p.MovimientosCaja)
+                .HasForeignKey(d => d.TurnoId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_MovCaja_Turno");
         });
 
         modelBuilder.Entity<Usuario>(entity =>
