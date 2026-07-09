@@ -158,7 +158,7 @@ public class ConfigService
         return await GetConfigImpuestosAsync();
     }
 
-    // ?? Métodos de Pago ????????????????????????????????????????????????????????
+    // ?? Mï¿½todos de Pago ????????????????????????????????????????????????????????
 
     public async Task<List<MetodoPagoDto>> GetMetodosPagoAsync()
     {
@@ -176,13 +176,36 @@ public class ConfigService
         }).ToList();
     }
 
+    // Convierte "Tarjeta de CrÃ©dito" -> "tarjeta-de-credito" para usar como codigo
+    private static string Slugify(string s)
+    {
+        var normalized = s.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
+        var sb = new System.Text.StringBuilder();
+        foreach (var c in normalized)
+        {
+            var cat = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c);
+            if (cat == System.Globalization.UnicodeCategory.NonSpacingMark) continue;
+            if (char.IsLetterOrDigit(c)) sb.Append(c);
+            else if (c == ' ' || c == '-' || c == '_') sb.Append('-');
+        }
+        return sb.ToString().Trim('-');
+    }
+
     public async Task<MetodoPagoDto> CreateMetodoPagoAsync(CreateMetodoPagoDto dto)
     {
+        // Codigo: si no viene, se genera del nombre (slug) y se garantiza unico
+        var codigo = string.IsNullOrWhiteSpace(dto.Codigo) ? Slugify(dto.Nombre) : dto.Codigo.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(codigo)) codigo = "metodo";
+        var baseCodigo = codigo;
+        var n = 2;
+        while (await _context.MetodosPagos.AnyAsync(m => m.Codigo == codigo))
+            codigo = $"{baseCodigo}-{n++}";
+
         var metodo = new MetodosPago
         {
             Id = Guid.NewGuid().ToString(),
-            Nombre = dto.Nombre,
-            Codigo = dto.Codigo,
+            Nombre = dto.Nombre.Trim(),
+            Codigo = codigo,
             Activo = true,
             RequiereReferencia = dto.RequiereReferencia
         };

@@ -39,7 +39,8 @@ public class MetodoPagoDto
 public class CreateMetodoPagoDto
 {
     public string Nombre { get; set; } = null!;
-    public string Codigo { get; set; } = null!;
+    // Opcional: si no viene, el servicio lo genera del nombre (slug)
+    public string? Codigo { get; set; }
     public bool RequiereReferencia { get; set; }
 }
 

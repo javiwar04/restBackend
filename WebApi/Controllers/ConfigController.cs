@@ -41,7 +41,7 @@ public class ConfigController : ControllerBase
 
         var usuarioId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var usuarioNombre = User.FindFirst(ClaimTypes.Name)?.Value ?? "";
-        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "config_negocio_update", "Actualizó configuración del negocio");
+        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "config_negocio_update", "Actualizï¿½ configuraciï¿½n del negocio");
 
         return Ok(config);
     }
@@ -72,12 +72,12 @@ public class ConfigController : ControllerBase
 
         var usuarioId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var usuarioNombre = User.FindFirst(ClaimTypes.Name)?.Value ?? "";
-        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "config_impuestos_update", "Actualizó configuración de impuestos");
+        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "config_impuestos_update", "Actualizï¿½ configuraciï¿½n de impuestos");
 
         return Ok(config);
     }
 
-    // ?? Métodos de Pago ????????????????????????????????????????????????????????
+    // ?? Mï¿½todos de Pago ????????????????????????????????????????????????????????
 
     [HttpGet("metodos-pago")]
     public async Task<IActionResult> GetMetodosPago()
@@ -93,14 +93,12 @@ public class ConfigController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.Nombre))
             return BadRequest(new ErrorResponse { Error = "El nombre es requerido" });
 
-        if (string.IsNullOrWhiteSpace(dto.Codigo))
-            return BadRequest(new ErrorResponse { Error = "El código es requerido" });
-
+        // El codigo es opcional: si no viene, el servicio lo genera del nombre
         var metodo = await _configService.CreateMetodoPagoAsync(dto);
 
         var usuarioId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var usuarioNombre = User.FindFirst(ClaimTypes.Name)?.Value ?? "";
-        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "metodo_pago_create", $"Creó método de pago: {dto.Nombre}");
+        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "metodo_pago_create", $"Creï¿½ mï¿½todo de pago: {dto.Nombre}");
 
         return CreatedAtAction(nameof(GetMetodosPago), metodo);
     }
@@ -112,11 +110,11 @@ public class ConfigController : ControllerBase
         var metodo = await _configService.UpdateMetodoPagoAsync(id, dto);
 
         if (metodo == null)
-            return NotFound(new ErrorResponse { Error = "Método de pago no encontrado" });
+            return NotFound(new ErrorResponse { Error = "Mï¿½todo de pago no encontrado" });
 
         var usuarioId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var usuarioNombre = User.FindFirst(ClaimTypes.Name)?.Value ?? "";
-        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "metodo_pago_update", $"Actualizó método de pago: {metodo.Nombre}");
+        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "metodo_pago_update", $"Actualizï¿½ mï¿½todo de pago: {metodo.Nombre}");
 
         return Ok(metodo);
     }
@@ -128,11 +126,11 @@ public class ConfigController : ControllerBase
         var deleted = await _configService.DeleteMetodoPagoAsync(id);
 
         if (!deleted)
-            return NotFound(new ErrorResponse { Error = "Método de pago no encontrado" });
+            return NotFound(new ErrorResponse { Error = "Mï¿½todo de pago no encontrado" });
 
         var usuarioId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var usuarioNombre = User.FindFirst(ClaimTypes.Name)?.Value ?? "";
-        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "metodo_pago_delete", $"Eliminó método de pago id: {id}");
+        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "metodo_pago_delete", $"Eliminï¿½ mï¿½todo de pago id: {id}");
 
         return Ok(new { ok = true });
     }
@@ -180,7 +178,7 @@ public class ConfigController : ControllerBase
 
         var usuarioId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var usuarioNombre = User.FindFirst(ClaimTypes.Name)?.Value ?? "";
-        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "comanda_edit", $"Editó comanda id: {id}");
+        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "comanda_edit", $"Editï¿½ comanda id: {id}");
 
         return Ok(comanda);
     }
@@ -199,7 +197,7 @@ public class ConfigController : ControllerBase
 
         var usuarioId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var usuarioNombre = User.FindFirst(ClaimTypes.Name)?.Value ?? "";
-        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "comanda_anular", $"Anuló comanda id: {id}. Motivo: {dto.Motivo}");
+        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "comanda_anular", $"Anulï¿½ comanda id: {id}. Motivo: {dto.Motivo}");
 
         return Ok(new { ok = true });
     }
@@ -215,7 +213,7 @@ public class ConfigController : ControllerBase
 
         var usuarioId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var usuarioNombre = User.FindFirst(ClaimTypes.Name)?.Value ?? "";
-        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "comanda_delete", $"Eliminó comanda id: {id}");
+        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "comanda_delete", $"Eliminï¿½ comanda id: {id}");
 
         return Ok(new { ok = true });
     }
@@ -231,7 +229,7 @@ public class ConfigController : ControllerBase
 
         var usuarioId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var usuarioNombre = User.FindFirst(ClaimTypes.Name)?.Value ?? "";
-        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "comanda_reprint", $"Reimprimió ticket de comanda id: {id}");
+        await _auditoriaService.RegistrarAsync(usuarioId, usuarioNombre, "comanda_reprint", $"Reimprimiï¿½ ticket de comanda id: {id}");
 
         return Ok(ticket);
     }
