@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WebApi.DTOs;
 using WebApi.DTOs.Inventario;
+using WebApi.Extensions;
 using WebApi.Services;
 
 namespace WebApi.Controllers;
@@ -22,7 +23,7 @@ public class InsumosController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetInsumos()
     {
-        var insumos = await _insumosService.GetInsumosAsync();
+        var insumos = await _insumosService.GetInsumosAsync(HttpContext.GetEstablecimiento());
         return Ok(insumos);
     }
 
@@ -34,7 +35,7 @@ public class InsumosController : ControllerBase
         [FromQuery] DateTime? hasta = null,
         [FromQuery] int limit = 200)
     {
-        var movimientos = await _insumosService.GetMovimientosAsync(insumo_id, tipo, desde, hasta, limit);
+        var movimientos = await _insumosService.GetMovimientosAsync(insumo_id, tipo, desde, hasta, limit, HttpContext.GetEstablecimiento());
         return Ok(movimientos);
     }
 
@@ -59,7 +60,11 @@ public class InsumosController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.Unidad))
             return BadRequest(new ErrorResponse { Error = "La unidad es requerida" });
 
-        var insumo = await _insumosService.CreateInsumoAsync(dto);
+        var establecimientoId = HttpContext.GetEstablecimiento();
+        if (string.IsNullOrEmpty(establecimientoId))
+            return BadRequest(new ErrorResponse { Error = "Seleccione una sucursal antes de crear insumos" });
+
+        var insumo = await _insumosService.CreateInsumoAsync(dto, establecimientoId);
         return CreatedAtAction(nameof(GetInsumo), new { id = insumo.Id }, insumo);
     }
 

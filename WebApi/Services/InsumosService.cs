@@ -14,46 +14,39 @@ public class InsumosService
         _context = context;
     }
 
-    public async Task<List<InsumoDto>> GetInsumosAsync()
+    // Mapeo comun a DTO
+    private static InsumoDto Map(Insumo i) => new()
     {
-        var insumos = await _context.Insumos
-            .OrderBy(i => i.Nombre)
-            .ToListAsync();
+        Id = i.Id,
+        Nombre = i.Nombre,
+        Unidad = i.Unidad,
+        StockActual = i.StockActual,
+        StockMinimo = i.StockMinimo,
+        CostoUnitario = i.CostoPorUnidad,
+        Activo = i.Activo,
+        EstablecimientoId = i.EstablecimientoId,
+        ActualizadoEn = i.CreadoEn
+    };
 
-        return insumos.Select(i => new InsumoDto
-        {
-            Id = i.Id,
-            Nombre = i.Nombre,
-            Unidad = i.Unidad,
-            StockActual = i.StockActual,
-            StockMinimo = i.StockMinimo,
-            CostoUnitario = i.CostoPorUnidad,
-            Activo = i.Activo,
-            ActualizadoEn = i.CreadoEn
-        }).ToList();
+    public async Task<List<InsumoDto>> GetInsumosAsync(string? establecimientoId = null)
+    {
+        var query = _context.Insumos.AsQueryable();
+
+        // Si viene sucursal, solo sus insumos; si no, todos (vista admin)
+        if (!string.IsNullOrEmpty(establecimientoId))
+            query = query.Where(i => i.EstablecimientoId == establecimientoId);
+
+        var insumos = await query.OrderBy(i => i.Nombre).ToListAsync();
+        return insumos.Select(Map).ToList();
     }
 
     public async Task<InsumoDto?> GetInsumoByIdAsync(string id)
     {
         var insumo = await _context.Insumos.FindAsync(id);
-
-        if (insumo == null)
-            return null;
-
-        return new InsumoDto
-        {
-            Id = insumo.Id,
-            Nombre = insumo.Nombre,
-            Unidad = insumo.Unidad,
-            StockActual = insumo.StockActual,
-            StockMinimo = insumo.StockMinimo,
-            CostoUnitario = insumo.CostoPorUnidad,
-            Activo = insumo.Activo,
-            ActualizadoEn = insumo.CreadoEn
-        };
+        return insumo == null ? null : Map(insumo);
     }
 
-    public async Task<InsumoDto> CreateInsumoAsync(CreateInsumoDto dto)
+    public async Task<InsumoDto> CreateInsumoAsync(CreateInsumoDto dto, string? establecimientoId)
     {
         var insumo = new Insumo
         {
@@ -63,6 +56,7 @@ public class InsumosService
             StockActual = dto.StockActual,
             StockMinimo = dto.StockMinimo,
             CostoPorUnidad = dto.CostoUnitario,
+            EstablecimientoId = establecimientoId,
             Activo = true,
             CreadoEn = DateTime.UtcNow
         };
@@ -70,17 +64,7 @@ public class InsumosService
         _context.Insumos.Add(insumo);
         await _context.SaveChangesAsync();
 
-        return new InsumoDto
-        {
-            Id = insumo.Id,
-            Nombre = insumo.Nombre,
-            Unidad = insumo.Unidad,
-            StockActual = insumo.StockActual,
-            StockMinimo = insumo.StockMinimo,
-            CostoUnitario = insumo.CostoPorUnidad,
-            Activo = insumo.Activo,
-            ActualizadoEn = insumo.CreadoEn
-        };
+        return Map(insumo);
     }
 
     public async Task<InsumoDto?> UpdateInsumoAsync(string id, UpdateInsumoDto dto)
@@ -110,17 +94,7 @@ public class InsumosService
 
         await _context.SaveChangesAsync();
 
-        return new InsumoDto
-        {
-            Id = insumo.Id,
-            Nombre = insumo.Nombre,
-            Unidad = insumo.Unidad,
-            StockActual = insumo.StockActual,
-            StockMinimo = insumo.StockMinimo,
-            CostoUnitario = insumo.CostoPorUnidad,
-            Activo = insumo.Activo,
-            ActualizadoEn = insumo.CreadoEn
-        };
+        return Map(insumo);
     }
 
     public async Task<bool> DeleteInsumoAsync(string id)
@@ -161,7 +135,7 @@ public class InsumosService
         }
         else
         {
-            throw new InvalidOperationException("Tipo inválido. Debe ser 'entrada' o 'salida'");
+            throw new InvalidOperationException("Tipo invï¿½lido. Debe ser 'entrada' o 'salida'");
         }
 
         var movimiento = new InsumosMovimiento
@@ -178,17 +152,7 @@ public class InsumosService
         _context.InsumosMovimientos.Add(movimiento);
         await _context.SaveChangesAsync();
 
-        return new InsumoDto
-        {
-            Id = insumo.Id,
-            Nombre = insumo.Nombre,
-            Unidad = insumo.Unidad,
-            StockActual = insumo.StockActual,
-            StockMinimo = insumo.StockMinimo,
-            CostoUnitario = insumo.CostoPorUnidad,
-            Activo = insumo.Activo,
-            ActualizadoEn = insumo.CreadoEn
-        };
+        return Map(insumo);
     }
 
     public async Task<List<MovimientoInsumoDto>> GetMovimientosAsync(
@@ -196,13 +160,18 @@ public class InsumosService
         string? tipo = null,
         DateTime? desde = null,
         DateTime? hasta = null,
-        int limit = 200)
+        int limit = 200,
+        string? establecimientoId = null)
     {
         limit = Math.Clamp(limit, 1, 1000);
 
         var query = _context.InsumosMovimientos
             .Include(m => m.Insumo)
             .AsQueryable();
+
+        // Solo movimientos de insumos de la sucursal activa
+        if (!string.IsNullOrEmpty(establecimientoId))
+            query = query.Where(m => m.Insumo.EstablecimientoId == establecimientoId);
 
         if (!string.IsNullOrEmpty(insumoId))
             query = query.Where(m => m.InsumoId == insumoId);

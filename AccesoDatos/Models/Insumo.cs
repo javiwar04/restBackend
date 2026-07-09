@@ -9,6 +9,8 @@ public partial class Insumo
 
     public string? CategoriaId { get; set; }
 
+    public string? EstablecimientoId { get; set; }
+
     public string Nombre { get; set; } = null!;
 
     public string Unidad { get; set; } = null!;

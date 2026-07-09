@@ -425,6 +425,9 @@ public partial class RestauranteDbContext : DbContext
             entity.Property(e => e.CategoriaId)
                 .HasMaxLength(36)
                 .HasColumnName("categoria_id");
+            entity.Property(e => e.EstablecimientoId)
+                .HasMaxLength(36)
+                .HasColumnName("establecimiento_id");
             entity.Property(e => e.CostoPorUnidad)
                 .HasColumnType("decimal(10, 4)")
                 .HasColumnName("costo_por_unidad");
