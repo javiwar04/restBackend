@@ -72,6 +72,10 @@ public partial class RestauranteDbContext : DbContext
 
     public virtual DbSet<MovimientoCaja> MovimientosCaja { get; set; }
 
+    public virtual DbSet<Establecimiento> Establecimientos { get; set; }
+
+    public virtual DbSet<UsuarioEstablecimiento> UsuariosEstablecimientos { get; set; }
+
     public virtual DbSet<Usuario> Usuarios { get; set; }
 
     public virtual DbSet<VwMesero> VwMeseros { get; set; }
@@ -998,6 +1002,28 @@ public partial class RestauranteDbContext : DbContext
                 .HasForeignKey(d => d.UsuarioId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Turnos_Usuario");
+        });
+
+        modelBuilder.Entity<Establecimiento>(entity =>
+        {
+            entity.ToTable("Establecimientos");
+
+            entity.Property(e => e.Id).HasMaxLength(36).HasColumnName("id");
+            entity.Property(e => e.Nombre).HasMaxLength(100).HasColumnName("nombre");
+            entity.Property(e => e.Direccion).HasMaxLength(200).HasColumnName("direccion");
+            entity.Property(e => e.Telefono).HasMaxLength(30).HasColumnName("telefono");
+            entity.Property(e => e.Activo).HasDefaultValue(true).HasColumnName("activo");
+            entity.Property(e => e.CreadoEn)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("creado_en");
+        });
+
+        modelBuilder.Entity<UsuarioEstablecimiento>(entity =>
+        {
+            entity.ToTable("Usuarios_Establecimientos");
+            entity.HasKey(e => new { e.UsuarioId, e.EstablecimientoId });
+            entity.Property(e => e.UsuarioId).HasMaxLength(36).HasColumnName("usuario_id");
+            entity.Property(e => e.EstablecimientoId).HasMaxLength(36).HasColumnName("establecimiento_id");
         });
 
         modelBuilder.Entity<MovimientoCaja>(entity =>
