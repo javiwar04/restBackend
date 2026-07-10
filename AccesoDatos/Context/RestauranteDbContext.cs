@@ -78,6 +78,10 @@ public partial class RestauranteDbContext : DbContext
 
     public virtual DbSet<PlatilloEstablecimiento> PlatillosEstablecimientos { get; set; }
 
+    public virtual DbSet<CorteInventario> CorteInventarios { get; set; }
+
+    public virtual DbSet<CorteInventarioDetalle> CorteInventarioDetalles { get; set; }
+
     public virtual DbSet<Usuario> Usuarios { get; set; }
 
     public virtual DbSet<VwMesero> VwMeseros { get; set; }
@@ -1049,6 +1053,42 @@ public partial class RestauranteDbContext : DbContext
             entity.HasKey(e => new { e.PlatilloId, e.EstablecimientoId });
             entity.Property(e => e.PlatilloId).HasMaxLength(36).HasColumnName("platillo_id");
             entity.Property(e => e.EstablecimientoId).HasMaxLength(36).HasColumnName("establecimiento_id");
+        });
+
+        modelBuilder.Entity<CorteInventario>(entity =>
+        {
+            entity.ToTable("Corte_Inventario");
+            entity.Property(e => e.Id).HasMaxLength(36).HasColumnName("id");
+            entity.Property(e => e.TurnoId).HasMaxLength(36).HasColumnName("turno_id");
+            entity.Property(e => e.EstablecimientoId).HasMaxLength(36).HasColumnName("establecimiento_id");
+            entity.Property(e => e.Fecha).HasColumnName("fecha");
+            entity.Property(e => e.TotalMermaValor).HasColumnType("decimal(12, 2)").HasColumnName("total_merma_valor");
+            entity.Property(e => e.Notas).HasMaxLength(300).HasColumnName("notas");
+            entity.Property(e => e.RegistradoEn).HasDefaultValueSql("(sysutcdatetime())").HasColumnName("registrado_en");
+        });
+
+        modelBuilder.Entity<CorteInventarioDetalle>(entity =>
+        {
+            entity.ToTable("Corte_Inventario_Detalle");
+            entity.HasIndex(e => e.CorteId, "IX_CorteInvDet_Corte");
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CorteId).HasMaxLength(36).HasColumnName("corte_id");
+            entity.Property(e => e.InsumoId).HasMaxLength(36).HasColumnName("insumo_id");
+            entity.Property(e => e.Encontre).HasColumnType("decimal(12, 4)").HasColumnName("encontre");
+            entity.Property(e => e.Ingreso).HasColumnType("decimal(12, 4)").HasColumnName("ingreso");
+            entity.Property(e => e.Quedo).HasColumnType("decimal(12, 4)").HasColumnName("quedo");
+            entity.Property(e => e.VendidoTeorico).HasColumnType("decimal(12, 4)").HasColumnName("vendido_teorico");
+            entity.Property(e => e.ConsumidoFisico).HasColumnType("decimal(12, 4)").HasColumnName("consumido_fisico");
+            entity.Property(e => e.Merma).HasColumnType("decimal(12, 4)").HasColumnName("merma");
+            entity.Property(e => e.CostoUnitario).HasColumnType("decimal(10, 4)").HasColumnName("costo_unitario");
+
+            entity.HasOne(d => d.Corte).WithMany(p => p.Detalles)
+                .HasForeignKey(d => d.CorteId)
+                .HasConstraintName("FK_CorteInvDet_Corte");
+            entity.HasOne(d => d.Insumo).WithMany()
+                .HasForeignKey(d => d.InsumoId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_CorteInvDet_Insumo");
         });
 
         modelBuilder.Entity<MovimientoCaja>(entity =>

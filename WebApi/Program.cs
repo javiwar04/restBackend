@@ -39,6 +39,7 @@ builder.Services.AddScoped<ReportesService>();
 builder.Services.AddScoped<FacturasService>();
 builder.Services.AddScoped<AuditoriaService>();
 builder.Services.AddScoped<EstablecimientosService>();
+builder.Services.AddScoped<CorteInventarioService>();
 builder.Services.AddSingleton<RealtimeNotifier>();
 
 // SignalR — eventos en tiempo real para POS y cocina
