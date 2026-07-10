@@ -6,6 +6,7 @@ public class SeccionDto
     public string Nombre { get; set; } = null!;
     public int Orden { get; set; }
     public bool Activa { get; set; }
+    public string? EstablecimientoId { get; set; }
     public List<MesaDto> Mesas { get; set; } = new();
 }
 
@@ -46,6 +47,8 @@ public class CreateSeccionDto
     public string Nombre { get; set; } = null!;
     public int Orden { get; set; } = 0;
     public bool Activa { get; set; } = true;
+    // Opcional: el admin (sin sucursal activa) indica a qué sucursal va
+    public string? EstablecimientoId { get; set; }
 }
 
 public class UpdateSeccionDto

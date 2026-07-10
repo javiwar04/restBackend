@@ -682,6 +682,9 @@ public partial class RestauranteDbContext : DbContext
                 .HasMaxLength(36)
                 .HasDefaultValueSql("(newid())")
                 .HasColumnName("id");
+            entity.Property(e => e.EstablecimientoId)
+                .HasMaxLength(36)
+                .HasColumnName("establecimiento_id");
             entity.Property(e => e.ActualizadoEn)
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("actualizado_en");
@@ -959,6 +962,9 @@ public partial class RestauranteDbContext : DbContext
             entity.Property(e => e.Activa)
                 .HasDefaultValue(true)
                 .HasColumnName("activa");
+            entity.Property(e => e.EstablecimientoId)
+                .HasMaxLength(36)
+                .HasColumnName("establecimiento_id");
             entity.Property(e => e.Nombre)
                 .HasMaxLength(80)
                 .HasColumnName("nombre");

@@ -14,12 +14,15 @@ public class MesasService
         _context = context;
     }
 
-    public async Task<List<SeccionDto>> GetSeccionesAsync()
+    public async Task<List<SeccionDto>> GetSeccionesAsync(string? establecimientoId = null)
     {
-        var secciones = await _context.Secciones
-            .Include(s => s.Mesas)
-            .OrderBy(s => s.Orden)
-            .ToListAsync();
+        var query = _context.Secciones.Include(s => s.Mesas).AsQueryable();
+
+        // Solo las secciones/mesas de la sucursal activa
+        if (!string.IsNullOrEmpty(establecimientoId))
+            query = query.Where(s => s.EstablecimientoId == establecimientoId);
+
+        var secciones = await query.OrderBy(s => s.Orden).ToListAsync();
 
         return secciones.Select(s => new SeccionDto
         {
@@ -27,6 +30,7 @@ public class MesasService
             Nombre = s.Nombre,
             Orden = s.Orden,
             Activa = s.Activa,
+            EstablecimientoId = s.EstablecimientoId,
             Mesas = s.Mesas.Select(m => new MesaDto
             {
                 Id = m.Id,
@@ -40,11 +44,15 @@ public class MesasService
         }).ToList();
     }
 
-    public async Task<List<MesaDto>> GetMesasAsync(string? seccionId = null, bool? activa = null)
+    public async Task<List<MesaDto>> GetMesasAsync(string? seccionId = null, bool? activa = null, string? establecimientoId = null)
     {
         var query = _context.Mesas
             .Include(m => m.Seccion)
             .AsQueryable();
+
+        // La mesa hereda la sucursal de su secciÃ³n
+        if (!string.IsNullOrEmpty(establecimientoId))
+            query = query.Where(m => m.Seccion.EstablecimientoId == establecimientoId);
 
         if (!string.IsNullOrEmpty(seccionId))
             query = query.Where(m => m.SeccionId == seccionId);
@@ -73,7 +81,7 @@ public class MesasService
     {
         var seccion = await _context.Secciones.FindAsync(dto.SeccionId);
         if (seccion == null)
-            throw new InvalidOperationException("Sección no encontrada");
+            throw new InvalidOperationException("Secciï¿½n no encontrada");
 
         var mesa = new Mesa
         {
@@ -113,7 +121,7 @@ public class MesasService
 
         var seccion = await _context.Secciones.FindAsync(dto.SeccionId);
         if (seccion == null)
-            throw new InvalidOperationException("Sección no encontrada");
+            throw new InvalidOperationException("Secciï¿½n no encontrada");
 
         mesa.Numero = dto.Numero;
         mesa.Etiqueta = dto.Etiqueta;
@@ -150,20 +158,25 @@ public class MesasService
         return true;
     }
 
-    public async Task<SeccionDto> CreateSeccionAsync(CreateSeccionDto dto)
+    public async Task<SeccionDto> CreateSeccionAsync(CreateSeccionDto dto, string? establecimientoId)
     {
         if (string.IsNullOrWhiteSpace(dto.Nombre))
             throw new ArgumentException("El nombre es requerido");
 
+        if (string.IsNullOrEmpty(establecimientoId))
+            throw new ArgumentException("Seleccione una sucursal");
+
+        // Nombre unico DENTRO de la misma sucursal
         var existe = await _context.Secciones
-            .AnyAsync(s => s.Nombre.ToLower() == dto.Nombre.ToLower());
+            .AnyAsync(s => s.EstablecimientoId == establecimientoId && s.Nombre.ToLower() == dto.Nombre.ToLower());
 
         if (existe)
-            throw new InvalidOperationException("Ya existe una sección con ese nombre");
+            throw new InvalidOperationException("Ya existe una secciï¿½n con ese nombre en esta sucursal");
 
         var seccion = new Seccione
         {
             Id = Guid.NewGuid().ToString(),
+            EstablecimientoId = establecimientoId,
             Nombre = dto.Nombre,
             Orden = dto.Orden,
             Activa = dto.Activa
@@ -194,10 +207,10 @@ public class MesasService
         if (!string.IsNullOrWhiteSpace(dto.Nombre) && dto.Nombre != seccion.Nombre)
         {
             var existe = await _context.Secciones
-                .AnyAsync(s => s.Nombre.ToLower() == dto.Nombre.ToLower() && s.Id != id);
+                .AnyAsync(s => s.EstablecimientoId == seccion.EstablecimientoId && s.Nombre.ToLower() == dto.Nombre.ToLower() && s.Id != id);
 
             if (existe)
-                throw new InvalidOperationException("Ya existe una sección con ese nombre");
+                throw new InvalidOperationException("Ya existe una secciï¿½n con ese nombre en esta sucursal");
 
             seccion.Nombre = dto.Nombre;
         }
@@ -239,7 +252,7 @@ public class MesasService
             return false;
 
         if (seccion.Mesas.Any())
-            throw new InvalidOperationException("La sección tiene mesas asignadas. Elimina o reasigna las mesas primero.");
+            throw new InvalidOperationException("La secciï¿½n tiene mesas asignadas. Elimina o reasigna las mesas primero.");
 
         _context.Secciones.Remove(seccion);
         await _context.SaveChangesAsync();

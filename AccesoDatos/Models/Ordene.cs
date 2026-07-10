@@ -7,6 +7,8 @@ public partial class Ordene
 {
     public string Id { get; set; } = null!;
 
+    public string? EstablecimientoId { get; set; }
+
     public string? MesaId { get; set; }
 
     public int? NumeroMesa { get; set; }

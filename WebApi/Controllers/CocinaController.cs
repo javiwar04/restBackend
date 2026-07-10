@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebApi.DTOs;
 using WebApi.DTOs.Ordenes;
+using WebApi.Extensions;
 using WebApi.Services;
 
 namespace WebApi.Controllers;
@@ -21,7 +22,7 @@ public class CocinaController : ControllerBase
     [HttpGet("ordenes")]
     public async Task<IActionResult> GetOrdenesEnCocina()
     {
-        var ordenes = await _cocinaService.GetOrdenesEnCocinaAsync();
+        var ordenes = await _cocinaService.GetOrdenesEnCocinaAsync(HttpContext.GetEstablecimiento());
         return Ok(ordenes);
     }
 

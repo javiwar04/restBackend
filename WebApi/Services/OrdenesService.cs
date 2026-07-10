@@ -22,12 +22,17 @@ public class OrdenesService
         string? turnoId = null,
         DateTime? desde = null,
         DateTime? hasta = null,
-        int limit = 100)
+        int limit = 100,
+        string? establecimientoId = null)
     {
         var query = _context.Ordenes
             .Include(o => o.OrdenItems)
             .ThenInclude(i => i.OrdenItemModificadores)
             .AsQueryable();
+
+        // Solo las órdenes de la sucursal activa
+        if (!string.IsNullOrEmpty(establecimientoId))
+            query = query.Where(o => o.EstablecimientoId == establecimientoId);
 
         if (!string.IsNullOrEmpty(estado))
             query = query.Where(o => o.Estado == estado);
@@ -65,7 +70,7 @@ public class OrdenesService
         return MapToDto(orden);
     }
 
-    public async Task<OrdenDto> CreateOrdenAsync(CreateOrdenDto dto, string usuarioId, string usuarioNombre)
+    public async Task<OrdenDto> CreateOrdenAsync(CreateOrdenDto dto, string usuarioId, string usuarioNombre, string? establecimientoId = null)
     {
         using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -96,6 +101,7 @@ public class OrdenesService
             var orden = new Ordene
             {
                 Id = Guid.NewGuid().ToString(),
+                EstablecimientoId = establecimientoId,
                 MesaId = dto.MesaId,
                 NumeroMesa = numeroMesa,
                 TipoServicio = dto.TipoServicio,

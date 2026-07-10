@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebApi.DTOs;
 using WebApi.DTOs.Mesas;
+using WebApi.Extensions;
 using WebApi.Services;
 
 namespace WebApi.Controllers;
@@ -18,18 +19,22 @@ public class MesasController : ControllerBase
     }
 
     [HttpGet("secciones")]
-    public async Task<IActionResult> GetSecciones()
+    public async Task<IActionResult> GetSecciones([FromQuery] string? establecimiento = null)
     {
-        var secciones = await _mesasService.GetSeccionesAsync();
+        // Filtro explÃ­cito (admin) > sucursal activa del header (operador)
+        var estId = !string.IsNullOrWhiteSpace(establecimiento) ? establecimiento : HttpContext.GetEstablecimiento();
+        var secciones = await _mesasService.GetSeccionesAsync(estId);
         return Ok(secciones);
     }
 
     [HttpGet("mesas")]
     public async Task<IActionResult> GetMesas(
         [FromQuery] string? seccion_id = null,
-        [FromQuery] bool? activa = null)
+        [FromQuery] bool? activa = null,
+        [FromQuery] string? establecimiento = null)
     {
-        var mesas = await _mesasService.GetMesasAsync(seccion_id, activa);
+        var estId = !string.IsNullOrWhiteSpace(establecimiento) ? establecimiento : HttpContext.GetEstablecimiento();
+        var mesas = await _mesasService.GetMesasAsync(seccion_id, activa, estId);
         return Ok(mesas);
     }
 
@@ -37,7 +42,7 @@ public class MesasController : ControllerBase
     public async Task<IActionResult> CreateMesa([FromBody] CreateMesaDto dto)
     {
         if (dto.Numero <= 0)
-            return BadRequest(new ErrorResponse { Error = "El número de mesa debe ser mayor a 0" });
+            return BadRequest(new ErrorResponse { Error = "El nï¿½mero de mesa debe ser mayor a 0" });
 
         try
         {
@@ -54,7 +59,7 @@ public class MesasController : ControllerBase
     public async Task<IActionResult> UpdateMesa(string id, [FromBody] UpdateMesaDto dto)
     {
         if (dto.Numero <= 0)
-            return BadRequest(new ErrorResponse { Error = "El número de mesa debe ser mayor a 0" });
+            return BadRequest(new ErrorResponse { Error = "El nï¿½mero de mesa debe ser mayor a 0" });
 
         try
         {
@@ -88,7 +93,9 @@ public class MesasController : ControllerBase
     {
         try
         {
-            var seccion = await _mesasService.CreateSeccionAsync(dto);
+            // Admin puede indicar la sucursal en el body; si no, la del header
+            var estId = !string.IsNullOrWhiteSpace(dto.EstablecimientoId) ? dto.EstablecimientoId : HttpContext.GetEstablecimiento();
+            var seccion = await _mesasService.CreateSeccionAsync(dto, estId);
             return StatusCode(201, seccion);
         }
         catch (ArgumentException ex)
@@ -110,7 +117,7 @@ public class MesasController : ControllerBase
             var seccion = await _mesasService.UpdateSeccionAsync(id, dto);
 
             if (seccion == null)
-                return NotFound(new ErrorResponse { Error = "Sección no encontrada" });
+                return NotFound(new ErrorResponse { Error = "Secciï¿½n no encontrada" });
 
             return Ok(seccion);
         }
@@ -129,7 +136,7 @@ public class MesasController : ControllerBase
             var deleted = await _mesasService.DeleteSeccionAsync(id);
 
             if (!deleted)
-                return NotFound(new ErrorResponse { Error = "Sección no encontrada" });
+                return NotFound(new ErrorResponse { Error = "Secciï¿½n no encontrada" });
 
             return Ok(new { ok = true });
         }

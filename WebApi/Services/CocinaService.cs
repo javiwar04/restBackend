@@ -15,15 +15,21 @@ public class CocinaService
         _realtime = realtime;
     }
 
-    public async Task<List<OrdenDto>> GetOrdenesEnCocinaAsync()
+    public async Task<List<OrdenDto>> GetOrdenesEnCocinaAsync(string? establecimientoId = null)
     {
-        var ordenes = await _context.Ordenes
+        var query = _context.Ordenes
             .Include(o => o.OrdenItems)
             .ThenInclude(i => i.OrdenItemModificadores)
             .Include(o => o.OrdenItems)
             .ThenInclude(i => i.Platillo)
             .ThenInclude(p => p!.Categoria)
-            .Where(o => o.Estado == "pendiente" || o.Estado == "en_cocina")
+            .Where(o => o.Estado == "pendiente" || o.Estado == "en_cocina");
+
+        // Cada cocina ve solo las órdenes de su sucursal
+        if (!string.IsNullOrEmpty(establecimientoId))
+            query = query.Where(o => o.EstablecimientoId == establecimientoId);
+
+        var ordenes = await query
             .OrderBy(o => o.CreadoEn)
             .ToListAsync();
 

@@ -29,6 +29,14 @@ public class EstablecimientosController : ControllerBase
         return Ok(list);
     }
 
+    // Lista pública (id+nombre) para el selector de la cocina, que es anónima
+    [AllowAnonymous]
+    [HttpGet("publicos")]
+    public async Task<IActionResult> GetPublicos()
+    {
+        return Ok(await _service.GetAllAsync());
+    }
+
     // Todos (para administración)
     [Authorize(Roles = "admin")]
     [HttpGet("todos")]

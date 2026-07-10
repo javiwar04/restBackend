@@ -7,6 +7,8 @@ public partial class Seccione
 {
     public string Id { get; set; } = null!;
 
+    public string? EstablecimientoId { get; set; }
+
     public string Nombre { get; set; } = null!;
 
     public int Orden { get; set; }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WebApi.DTOs;
 using WebApi.DTOs.Ordenes;
+using WebApi.Extensions;
 using WebApi.Services;
 
 namespace WebApi.Controllers;
@@ -28,7 +29,7 @@ public class OrdenesController : ControllerBase
         [FromQuery] DateTime? hasta = null,
         [FromQuery] int limit = 100)
     {
-        var ordenes = await _ordenesService.GetOrdenesAsync(estado, mesa_id, turno_id, desde, hasta, limit);
+        var ordenes = await _ordenesService.GetOrdenesAsync(estado, mesa_id, turno_id, desde, hasta, limit, HttpContext.GetEstablecimiento());
         return Ok(ordenes);
     }
 
@@ -57,7 +58,7 @@ public class OrdenesController : ControllerBase
 
         try
         {
-            var orden = await _ordenesService.CreateOrdenAsync(dto, usuarioId, usuarioNombre);
+            var orden = await _ordenesService.CreateOrdenAsync(dto, usuarioId, usuarioNombre, HttpContext.GetEstablecimiento());
             return CreatedAtAction(nameof(GetOrden), new { id = orden.Id }, orden);
         }
         catch (Exception ex)
