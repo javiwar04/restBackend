@@ -7,6 +7,8 @@ public partial class ConfigImpuesto
 {
     public int Id { get; set; }
 
+    public string? EstablecimientoId { get; set; }
+
     public bool IvaHabilitado { get; set; }
 
     public decimal IvaTasa { get; set; }

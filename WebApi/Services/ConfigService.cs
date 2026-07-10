@@ -16,33 +16,40 @@ public class ConfigService
         _hashService = hashService;
     }
 
-    public async Task<ConfigNegocioDto> GetConfigNegocioAsync()
+    public async Task<ConfigNegocioDto> GetConfigNegocioAsync(string? establecimientoId = null)
     {
         var config = await _context.ConfigNegocios.FirstOrDefaultAsync();
 
-        if (config == null)
-        {
-            return new ConfigNegocioDto
+        var dto = config == null
+            ? new ConfigNegocioDto { Nombre = "Restaurante", Moneda = "GTQ", ZonaHoraria = "America/Guatemala" }
+            : new ConfigNegocioDto
             {
-                Nombre = "Restaurante SF",
-                Moneda = "MXN",
-                ZonaHoraria = "America/Mexico_City"
+                Nombre = config.Nombre,
+                Rfc = config.Rfc,
+                Direccion = config.Direccion,
+                Telefono = config.Telefono,
+                Email = config.Email,
+                Logo = null,
+                Moneda = config.Moneda ?? "GTQ",
+                ZonaHoraria = config.ZonaHoraria ?? "America/Guatemala",
+                TicketHeader = config.TicketEncabezado,
+                TicketFooter = config.TicketPie
             };
+
+        // Si hay sucursal activa, el ticket lleva SU nombre/dirección/teléfono
+        // (el encabezado/pie/moneda siguen siendo del negocio)
+        if (!string.IsNullOrEmpty(establecimientoId))
+        {
+            var est = await _context.Establecimientos.FindAsync(establecimientoId);
+            if (est != null)
+            {
+                dto.Nombre = est.Nombre;
+                if (!string.IsNullOrWhiteSpace(est.Direccion)) dto.Direccion = est.Direccion;
+                if (!string.IsNullOrWhiteSpace(est.Telefono)) dto.Telefono = est.Telefono;
+            }
         }
 
-        return new ConfigNegocioDto
-        {
-            Nombre = config.Nombre,
-            Rfc = config.Rfc,
-            Direccion = config.Direccion,
-            Telefono = config.Telefono,
-            Email = config.Email,
-            Logo = null,
-            Moneda = config.Moneda ?? "MXN",
-            ZonaHoraria = config.ZonaHoraria ?? "America/Mexico_City",
-            TicketHeader = config.TicketEncabezado,
-            TicketFooter = config.TicketPie
-        };
+        return dto;
     }
 
     public async Task<ConfigNegocioDto> UpdateConfigNegocioAsync(ConfigNegocioDto dto)
@@ -85,77 +92,78 @@ public class ConfigService
         return dto;
     }
 
-    public async Task<ConfigImpuestosDto> GetConfigImpuestosAsync()
+    private static ConfigImpuestosDto MapImpuestos(ConfigImpuesto c) => new()
     {
-        var config = await _context.ConfigImpuestos.FirstOrDefaultAsync();
+        IvaActivo = c.IvaHabilitado,
+        IvaPorcentaje = c.IvaTasa * 100,
+        IepsTabaco = 0,
+        IepsBebidas = 0,
+        PreciosConIva = c.IvaIncluido,
+        PropinaActiva = c.PropinaHabilitada,
+        PropinaSugerida = c.PropinaSugerida * 100,
+        CargoServicioActivo = c.CargoServicioHabilitado,
+        CargoServicioPorcentaje = c.CargoServicioTasa * 100
+    };
 
-        if (config == null)
-        {
-            return new ConfigImpuestosDto
-            {
-                IvaActivo = true,
-                IvaPorcentaje = 16.0m,
-                IepsTabaco = 0,
-                IepsBebidas = 0,
-                PreciosConIva = false,
-                PropinaActiva = false,
-                PropinaSugerida = 10m,
-                CargoServicioActivo = false,
-                CargoServicioPorcentaje = 0
-            };
-        }
+    // Busca la config de impuestos de una sucursal; si no existe, la crea a
+    // partir de otra fila (plantilla) o de valores por defecto.
+    private async Task<ConfigImpuesto> FindOrCreateImpuestosAsync(string? establecimientoId)
+    {
+        ConfigImpuesto? config = null;
+        if (!string.IsNullOrEmpty(establecimientoId))
+            config = await _context.ConfigImpuestos.FirstOrDefaultAsync(c => c.EstablecimientoId == establecimientoId);
 
-        return new ConfigImpuestosDto
+        // Sin sucursal: la primera que haya (vista admin sin filtro)
+        config ??= string.IsNullOrEmpty(establecimientoId)
+            ? await _context.ConfigImpuestos.FirstOrDefaultAsync()
+            : null;
+
+        if (config != null) return config;
+
+        // Crear para esta sucursal copiando otra fila como plantilla
+        var plantilla = await _context.ConfigImpuestos.FirstOrDefaultAsync();
+        var nextId = (await _context.ConfigImpuestos.MaxAsync(c => (int?)c.Id) ?? 0) + 1;
+        config = new ConfigImpuesto
         {
-            IvaActivo = config.IvaHabilitado,
-            IvaPorcentaje = config.IvaTasa * 100,
-            IepsTabaco = 0,
-            IepsBebidas = 0,
-            PreciosConIva = config.IvaIncluido,
-            PropinaActiva = config.PropinaHabilitada,
-            PropinaSugerida = config.PropinaSugerida * 100,
-            CargoServicioActivo = config.CargoServicioHabilitado,
-            CargoServicioPorcentaje = config.CargoServicioTasa * 100
+            Id = nextId,
+            EstablecimientoId = establecimientoId,
+            IvaHabilitado = plantilla?.IvaHabilitado ?? true,
+            IvaTasa = plantilla?.IvaTasa ?? 0.16m,
+            IvaIncluido = plantilla?.IvaIncluido ?? false,
+            PropinaHabilitada = plantilla?.PropinaHabilitada ?? false,
+            PropinaSugerida = plantilla?.PropinaSugerida ?? 0.10m,
+            PropinaAuto = false,
+            PropinaAutoMinComensales = 6,
+            PropinaAutoTasa = plantilla?.PropinaAutoTasa ?? 0.10m,
+            CargoServicioHabilitado = plantilla?.CargoServicioHabilitado ?? false,
+            CargoServicioTasa = plantilla?.CargoServicioTasa ?? 0m
         };
+        _context.ConfigImpuestos.Add(config);
+        await _context.SaveChangesAsync();
+        return config;
     }
 
-    public async Task<ConfigImpuestosDto> UpdateConfigImpuestosAsync(ConfigImpuestosDto dto)
+    public async Task<ConfigImpuestosDto> GetConfigImpuestosAsync(string? establecimientoId = null)
     {
-        var config = await _context.ConfigImpuestos.FirstOrDefaultAsync();
+        var config = await FindOrCreateImpuestosAsync(establecimientoId);
+        return MapImpuestos(config);
+    }
 
-        if (config == null)
-        {
-            config = new ConfigImpuesto
-            {
-                Id = 1,
-                IvaHabilitado = dto.IvaActivo,
-                IvaTasa = dto.IvaPorcentaje / 100,
-                IvaIncluido = dto.PreciosConIva,
-                PropinaHabilitada = dto.PropinaActiva,
-                PropinaSugerida = dto.PropinaSugerida / 100,
-                PropinaAuto = false,
-                PropinaAutoMinComensales = 6,
-                PropinaAutoTasa = dto.PropinaSugerida / 100,
-                CargoServicioHabilitado = dto.CargoServicioActivo,
-                CargoServicioTasa = dto.CargoServicioPorcentaje / 100
-            };
+    public async Task<ConfigImpuestosDto> UpdateConfigImpuestosAsync(ConfigImpuestosDto dto, string? establecimientoId = null)
+    {
+        var config = await FindOrCreateImpuestosAsync(establecimientoId);
 
-            _context.ConfigImpuestos.Add(config);
-        }
-        else
-        {
-            config.IvaHabilitado = dto.IvaActivo;
-            config.IvaTasa = dto.IvaPorcentaje / 100;
-            config.IvaIncluido = dto.PreciosConIva;
-            config.PropinaHabilitada = dto.PropinaActiva;
-            config.PropinaSugerida = dto.PropinaSugerida / 100;
-            config.CargoServicioHabilitado = dto.CargoServicioActivo;
-            config.CargoServicioTasa = dto.CargoServicioPorcentaje / 100;
-        }
+        config.IvaHabilitado = dto.IvaActivo;
+        config.IvaTasa = dto.IvaPorcentaje / 100;
+        config.IvaIncluido = dto.PreciosConIva;
+        config.PropinaHabilitada = dto.PropinaActiva;
+        config.PropinaSugerida = dto.PropinaSugerida / 100;
+        config.CargoServicioHabilitado = dto.CargoServicioActivo;
+        config.CargoServicioTasa = dto.CargoServicioPorcentaje / 100;
 
         await _context.SaveChangesAsync();
 
-        return await GetConfigImpuestosAsync();
+        return MapImpuestos(config);
     }
 
     // ?? M�todos de Pago ????????????????????????????????????????????????????????

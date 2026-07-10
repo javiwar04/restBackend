@@ -217,6 +217,9 @@ public partial class RestauranteDbContext : DbContext
             entity.Property(e => e.Id)
                 .HasDefaultValue(1)
                 .HasColumnName("id");
+            entity.Property(e => e.EstablecimientoId)
+                .HasMaxLength(36)
+                .HasColumnName("establecimiento_id");
             entity.Property(e => e.CargoServicioHabilitado).HasColumnName("cargo_servicio_habilitado");
             entity.Property(e => e.CargoServicioTasa)
                 .HasColumnType("decimal(5, 4)")

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WebApi.DTOs;
 using WebApi.DTOs.Config;
+using WebApi.Extensions;
 using WebApi.Services;
 
 namespace WebApi.Controllers;
@@ -24,9 +25,10 @@ public class ConfigController : ControllerBase
     // ?? Negocio ????????????????????????????????????????????????????????????????
 
     [HttpGet("negocio")]
-    public async Task<IActionResult> GetConfigNegocio()
+    public async Task<IActionResult> GetConfigNegocio([FromQuery] string? establecimiento = null)
     {
-        var config = await _configService.GetConfigNegocioAsync();
+        var estId = !string.IsNullOrWhiteSpace(establecimiento) ? establecimiento : HttpContext.GetEstablecimiento();
+        var config = await _configService.GetConfigNegocioAsync(estId);
         return Ok(config);
     }
 
@@ -49,15 +51,16 @@ public class ConfigController : ControllerBase
     // ?? Impuestos ??????????????????????????????????????????????????????????????
 
     [HttpGet("impuestos")]
-    public async Task<IActionResult> GetConfigImpuestos()
+    public async Task<IActionResult> GetConfigImpuestos([FromQuery] string? establecimiento = null)
     {
-        var config = await _configService.GetConfigImpuestosAsync();
+        var estId = !string.IsNullOrWhiteSpace(establecimiento) ? establecimiento : HttpContext.GetEstablecimiento();
+        var config = await _configService.GetConfigImpuestosAsync(estId);
         return Ok(config);
     }
 
     [Authorize(Roles = "admin")]
     [HttpPut("impuestos")]
-    public async Task<IActionResult> UpdateConfigImpuestos([FromBody] ConfigImpuestosDto dto)
+    public async Task<IActionResult> UpdateConfigImpuestos([FromBody] ConfigImpuestosDto dto, [FromQuery] string? establecimiento = null)
     {
         if (dto.IvaPorcentaje < 0 || dto.IvaPorcentaje > 100)
             return BadRequest(new ErrorResponse { Error = "El IVA debe estar entre 0 y 100" });
@@ -68,7 +71,8 @@ public class ConfigController : ControllerBase
         if (dto.CargoServicioPorcentaje < 0 || dto.CargoServicioPorcentaje > 100)
             return BadRequest(new ErrorResponse { Error = "El cargo por servicio debe estar entre 0 y 100" });
 
-        var config = await _configService.UpdateConfigImpuestosAsync(dto);
+        var estId = !string.IsNullOrWhiteSpace(establecimiento) ? establecimiento : HttpContext.GetEstablecimiento();
+        var config = await _configService.UpdateConfigImpuestosAsync(dto, estId);
 
         var usuarioId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var usuarioNombre = User.FindFirst(ClaimTypes.Name)?.Value ?? "";
