@@ -9,6 +9,16 @@ public class VentasReportDto
     public decimal TicketPromedio { get; set; }
     public Dictionary<string, decimal> PorMetodoPago { get; set; } = new();
     public List<VentaPorDiaDto> PorDia { get; set; } = new();
+    // Desglose por sucursal (cerebro financiero: aporte de cada local)
+    public List<VentaPorEstablecimientoDto> PorEstablecimiento { get; set; } = new();
+}
+
+public class VentaPorEstablecimientoDto
+{
+    public string? EstablecimientoId { get; set; }
+    public string Nombre { get; set; } = null!;
+    public decimal Total { get; set; }
+    public int Ordenes { get; set; }
 }
 
 public class VentaPorDiaDto

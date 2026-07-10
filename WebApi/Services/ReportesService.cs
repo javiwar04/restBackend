@@ -13,12 +13,18 @@ public class ReportesService
         _context = context;
     }
 
-    public async Task<VentasReportDto> GetReporteVentasAsync(DateTime desde, DateTime hasta)
+    public async Task<VentasReportDto> GetReporteVentasAsync(DateTime desde, DateTime hasta, string? establecimientoId = null)
     {
-        var pagos = await _context.Pagos
+        var query = _context.Pagos
             .Include(p => p.PagosDetalles)
-            .Where(p => p.RegistradoEn >= desde && p.RegistradoEn <= hasta)
-            .ToListAsync();
+            .Include(p => p.Orden)
+            .Where(p => p.RegistradoEn >= desde && p.RegistradoEn <= hasta);
+
+        // Filtro por sucursal (vía la orden); sin él = consolidado del negocio
+        if (!string.IsNullOrEmpty(establecimientoId))
+            query = query.Where(p => p.Orden.EstablecimientoId == establecimientoId);
+
+        var pagos = await query.ToListAsync();
 
         var totalVentas = pagos.Sum(p => p.MontoTotal);
         var totalOrdenes = pagos.Count;
@@ -40,6 +46,20 @@ public class ReportesService
             .OrderBy(v => v.Fecha)
             .ToList();
 
+        // Desglose por sucursal (nombres desde Establecimientos)
+        var nombres = await _context.Establecimientos.ToDictionaryAsync(e => e.Id, e => e.Nombre);
+        var porEstablecimiento = pagos
+            .GroupBy(p => p.Orden.EstablecimientoId)
+            .Select(g => new VentaPorEstablecimientoDto
+            {
+                EstablecimientoId = g.Key,
+                Nombre = g.Key != null && nombres.TryGetValue(g.Key, out var n) ? n : "Sin sucursal",
+                Total = g.Sum(p => p.MontoTotal),
+                Ordenes = g.Count()
+            })
+            .OrderByDescending(e => e.Total)
+            .ToList();
+
         return new VentasReportDto
         {
             Desde = desde.ToString("yyyy-MM-dd"),
@@ -48,17 +68,19 @@ public class ReportesService
             TotalOrdenes = totalOrdenes,
             TicketPromedio = ticketPromedio,
             PorMetodoPago = porMetodoPago,
-            PorDia = porDia
+            PorDia = porDia,
+            PorEstablecimiento = porEstablecimiento
         };
     }
 
-    public async Task<PlatillosReportDto> GetReportePlatillosAsync(DateTime desde, DateTime hasta)
+    public async Task<PlatillosReportDto> GetReportePlatillosAsync(DateTime desde, DateTime hasta, string? establecimientoId = null)
     {
         var items = await _context.OrdenItems
             .Include(i => i.Orden)
-            .Where(i => i.Orden.Estado == "pagado" && 
-                        i.Orden.CreadoEn >= desde && 
-                        i.Orden.CreadoEn <= hasta)
+            .Where(i => i.Orden.Estado == "pagado" &&
+                        i.Orden.CreadoEn >= desde &&
+                        i.Orden.CreadoEn <= hasta &&
+                        (establecimientoId == null || i.Orden.EstablecimientoId == establecimientoId))
             .GroupBy(i => new { i.PlatilloId, i.Nombre })
             .Select(g => new
             {
@@ -90,7 +112,7 @@ public class ReportesService
         };
     }
 
-    public async Task<CorteCajaReportDto?> GetReporteCorteCajaAsync(string? turnoId)
+    public async Task<CorteCajaReportDto?> GetReporteCorteCajaAsync(string? turnoId, string? establecimientoId = null)
     {
         AccesoDatos.Models.Turno? turno;
 
@@ -100,7 +122,9 @@ public class ReportesService
         }
         else
         {
+            // El último turno (de la sucursal si se indica)
             turno = await _context.Turnos
+                .Where(t => establecimientoId == null || t.EstablecimientoId == establecimientoId)
                 .OrderByDescending(t => t.Inicio)
                 .FirstOrDefaultAsync();
         }
@@ -134,13 +158,14 @@ public class ReportesService
         };
     }
 
-    public async Task<MeserosReportDto> GetReporteMeserosAsync(DateTime desde, DateTime hasta)
+    public async Task<MeserosReportDto> GetReporteMeserosAsync(DateTime desde, DateTime hasta, string? establecimientoId = null)
     {
         var ordenes = await _context.Ordenes
-            .Where(o => o.Estado == "pagado" && 
-                        o.CreadoEn >= desde && 
+            .Where(o => o.Estado == "pagado" &&
+                        o.CreadoEn >= desde &&
                         o.CreadoEn <= hasta &&
-                        o.MeseroId != null)
+                        o.MeseroId != null &&
+                        (establecimientoId == null || o.EstablecimientoId == establecimientoId))
             .GroupBy(o => new { o.MeseroId, o.MeseroNombre })
             .Select(g => new MeseroVentasDto
             {
