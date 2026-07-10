@@ -10,6 +10,8 @@ public class PlatilloDto
     public decimal Precio { get; set; }
     public bool Disponible { get; set; }
     public string? ImagenUrl { get; set; }
+    // Sucursales donde se ofrece el platillo
+    public List<string> Establecimientos { get; set; } = new();
     public List<ModificadorGrupoDto> Modificadores { get; set; } = new();
 }
 
@@ -43,6 +45,8 @@ public class CreatePlatilloDto
     public decimal Precio { get; set; }
     public bool Disponible { get; set; } = true;
     public string? ImagenUrl { get; set; }
+    // Sucursales donde se ofrece; null = no tocar, [] = ninguna, [...] = esas
+    public List<string>? EstablecimientoIds { get; set; }
     public List<CreateModificadorGrupoDto>? Modificadores { get; set; }
 }
 
@@ -54,6 +58,7 @@ public class UpdatePlatilloDto
     public decimal Precio { get; set; }
     public bool Disponible { get; set; }
     public string? ImagenUrl { get; set; }
+    public List<string>? EstablecimientoIds { get; set; }
     public List<CreateModificadorGrupoDto>? Modificadores { get; set; }
 }
 

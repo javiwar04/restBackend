@@ -76,6 +76,8 @@ public partial class RestauranteDbContext : DbContext
 
     public virtual DbSet<UsuarioEstablecimiento> UsuariosEstablecimientos { get; set; }
 
+    public virtual DbSet<PlatilloEstablecimiento> PlatillosEstablecimientos { get; set; }
+
     public virtual DbSet<Usuario> Usuarios { get; set; }
 
     public virtual DbSet<VwMesero> VwMeseros { get; set; }
@@ -1035,6 +1037,14 @@ public partial class RestauranteDbContext : DbContext
             entity.ToTable("Usuarios_Establecimientos");
             entity.HasKey(e => new { e.UsuarioId, e.EstablecimientoId });
             entity.Property(e => e.UsuarioId).HasMaxLength(36).HasColumnName("usuario_id");
+            entity.Property(e => e.EstablecimientoId).HasMaxLength(36).HasColumnName("establecimiento_id");
+        });
+
+        modelBuilder.Entity<PlatilloEstablecimiento>(entity =>
+        {
+            entity.ToTable("Platillos_Establecimientos");
+            entity.HasKey(e => new { e.PlatilloId, e.EstablecimientoId });
+            entity.Property(e => e.PlatilloId).HasMaxLength(36).HasColumnName("platillo_id");
             entity.Property(e => e.EstablecimientoId).HasMaxLength(36).HasColumnName("establecimiento_id");
         });
 

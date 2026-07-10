@@ -14,7 +14,7 @@ public class MenuService
         _context = context;
     }
 
-    // Categorías
+    // Categorï¿½as
     public async Task<List<CategoriaMenuDto>> GetCategoriasAsync()
     {
         return await _context.CategoriasMenus
@@ -99,7 +99,7 @@ public class MenuService
             return false;
 
         if (categoria.Platillos.Any())
-            throw new InvalidOperationException("La categoría tiene platillos asociados");
+            throw new InvalidOperationException("La categorï¿½a tiene platillos asociados");
 
         _context.CategoriasMenus.Remove(categoria);
         await _context.SaveChangesAsync();
@@ -108,11 +108,16 @@ public class MenuService
     }
 
     // Platillos
-    public async Task<List<PlatilloDto>> GetPlatillosAsync(string? categoriaId = null, bool? disponible = null, string? q = null)
+    public async Task<List<PlatilloDto>> GetPlatillosAsync(string? categoriaId = null, bool? disponible = null, string? q = null, string? establecimientoId = null)
     {
         var query = _context.Platillos
             .Include(p => p.Categoria)
             .AsQueryable();
+
+        // Solo los platillos ofrecidos en la sucursal activa
+        if (!string.IsNullOrEmpty(establecimientoId))
+            query = query.Where(p => _context.PlatillosEstablecimientos
+                .Any(pe => pe.PlatilloId == p.Id && pe.EstablecimientoId == establecimientoId));
 
         if (!string.IsNullOrEmpty(categoriaId))
             query = query.Where(p => p.CategoriaId == categoriaId);
@@ -127,6 +132,14 @@ public class MenuService
             .OrderBy(p => p.Categoria.Orden)
             .ThenBy(p => p.Nombre)
             .ToListAsync();
+
+        // Sucursales asignadas por platillo (para la vista/ediciÃ³n del admin)
+        var ids = platillos.Select(p => p.Id).ToList();
+        var asignaciones = await _context.PlatillosEstablecimientos
+            .Where(pe => ids.Contains(pe.PlatilloId))
+            .ToListAsync();
+        var porPlatillo = asignaciones.GroupBy(pe => pe.PlatilloId)
+            .ToDictionary(g => g.Key, g => g.Select(pe => pe.EstablecimientoId).ToList());
 
         var result = new List<PlatilloDto>();
 
@@ -144,6 +157,7 @@ public class MenuService
                 Precio = platillo.Precio,
                 Disponible = platillo.Disponible,
                 ImagenUrl = platillo.ImagenUrl,
+                Establecimientos = porPlatillo.TryGetValue(platillo.Id, out var es) ? es : new List<string>(),
                 Modificadores = modificadores
             });
         }
@@ -161,6 +175,10 @@ public class MenuService
             return null;
 
         var modificadores = await GetModificadoresPorPlatilloAsync(platillo.CategoriaId, platillo.Id);
+        var estIds = await _context.PlatillosEstablecimientos
+            .Where(pe => pe.PlatilloId == platillo.Id)
+            .Select(pe => pe.EstablecimientoId)
+            .ToListAsync();
 
         return new PlatilloDto
         {
@@ -172,15 +190,40 @@ public class MenuService
             Precio = platillo.Precio,
             Disponible = platillo.Disponible,
             ImagenUrl = platillo.ImagenUrl,
+            Establecimientos = estIds,
             Modificadores = modificadores
         };
+    }
+
+    // Sincroniza en quÃ© sucursales estÃ¡ el platillo (reemplaza las asignaciones)
+    private async Task SincronizarEstablecimientosAsync(string platilloId, List<string> establecimientoIds)
+    {
+        var existentes = await _context.PlatillosEstablecimientos
+            .Where(pe => pe.PlatilloId == platilloId)
+            .ToListAsync();
+        if (existentes.Any())
+        {
+            _context.PlatillosEstablecimientos.RemoveRange(existentes);
+            await _context.SaveChangesAsync();
+        }
+
+        var idsValidos = establecimientoIds.Distinct().ToList();
+        foreach (var estId in idsValidos)
+        {
+            _context.PlatillosEstablecimientos.Add(new PlatilloEstablecimiento
+            {
+                PlatilloId = platilloId,
+                EstablecimientoId = estId
+            });
+        }
+        await _context.SaveChangesAsync();
     }
 
     public async Task<PlatilloDto> CreatePlatilloAsync(CreatePlatilloDto dto)
     {
         var categoria = await _context.CategoriasMenus.FindAsync(dto.CategoriaId);
         if (categoria == null)
-            throw new InvalidOperationException("Categoría no encontrada");
+            throw new InvalidOperationException("Categorï¿½a no encontrada");
 
         var platillo = new Platillo
         {
@@ -198,12 +241,18 @@ public class MenuService
         await _context.SaveChangesAsync();
 
         // ? Solo sincronizar si el campo modificadores viene en el request
-        // null = No envió el campo ? No tocar modificadores
-        // [] = Envió array vacío ? Borrar todos
-        // [...] = Envió array con elementos ? Crear esos
+        // null = No enviï¿½ el campo ? No tocar modificadores
+        // [] = Enviï¿½ array vacï¿½o ? Borrar todos
+        // [...] = Enviï¿½ array con elementos ? Crear esos
         if (dto.Modificadores != null)
         {
             await SincronizarModificadoresAsync(platillo.Id, dto.Modificadores);
+        }
+
+        // Sucursales donde se ofrece el platillo
+        if (dto.EstablecimientoIds != null)
+        {
+            await SincronizarEstablecimientosAsync(platillo.Id, dto.EstablecimientoIds);
         }
 
         return await GetPlatilloByIdAsync(platillo.Id) ?? throw new InvalidOperationException("Error al crear platillo");
@@ -220,7 +269,7 @@ public class MenuService
 
         var categoria = await _context.CategoriasMenus.FindAsync(dto.CategoriaId);
         if (categoria == null)
-            throw new InvalidOperationException("Categoría no encontrada");
+            throw new InvalidOperationException("Categorï¿½a no encontrada");
 
         platillo.CategoriaId = dto.CategoriaId;
         platillo.Nombre = dto.Nombre;
@@ -232,12 +281,17 @@ public class MenuService
         await _context.SaveChangesAsync();
 
         // ? Solo sincronizar si el campo modificadores viene en el request
-        // null = No envió el campo ? No tocar modificadores
-        // [] = Envió array vacío ? Borrar todos
-        // [...] = Envió array con elementos ? Reemplazar todos
+        // null = No enviï¿½ el campo ? No tocar modificadores
+        // [] = Enviï¿½ array vacï¿½o ? Borrar todos
+        // [...] = Enviï¿½ array con elementos ? Reemplazar todos
         if (dto.Modificadores != null)
         {
             await SincronizarModificadoresAsync(id, dto.Modificadores);
+        }
+
+        if (dto.EstablecimientoIds != null)
+        {
+            await SincronizarEstablecimientosAsync(id, dto.EstablecimientoIds);
         }
 
         return await GetPlatilloByIdAsync(id);
@@ -310,7 +364,7 @@ public class MenuService
                 }
             }
 
-            // ? 2. Modificadores de CATEGORÍA (sistema anterior - mantener compatibilidad)
+            // ? 2. Modificadores de CATEGORï¿½A (sistema anterior - mantener compatibilidad)
             var gruposDeCategoria = await _context.CategoriasMenus
                 .Where(c => c.Id == categoriaId)
                 .SelectMany(c => c.Grupos)
@@ -353,7 +407,7 @@ public class MenuService
         }
         catch (Exception)
         {
-            // Si falla al obtener modificadores, devolver lista vacía para que el platillo se muestre igual
+            // Si falla al obtener modificadores, devolver lista vacï¿½a para que el platillo se muestre igual
             return new List<ModificadorGrupoDto>();
         }
 
@@ -376,7 +430,7 @@ public class MenuService
             await _context.SaveChangesAsync();
         }
 
-        // ? 2. Si modificadores es null o vacío, solo borrar y terminar
+        // ? 2. Si modificadores es null o vacï¿½o, solo borrar y terminar
         if (modificadores == null || !modificadores.Any())
             return;
 

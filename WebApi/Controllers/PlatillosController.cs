@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebApi.DTOs;
 using WebApi.DTOs.Menu;
+using WebApi.Extensions;
 using WebApi.Services;
 
 namespace WebApi.Controllers;
@@ -22,9 +23,12 @@ public class PlatillosController : ControllerBase
     public async Task<IActionResult> GetPlatillos(
         [FromQuery] string? categoria_id = null,
         [FromQuery] bool? disponible = null,
-        [FromQuery] string? q = null)
+        [FromQuery] string? q = null,
+        [FromQuery] string? establecimiento = null)
     {
-        var platillos = await _menuService.GetPlatillosAsync(categoria_id, disponible, q);
+        // Filtro explícito (admin) > sucursal activa del header (POS)
+        var estId = !string.IsNullOrWhiteSpace(establecimiento) ? establecimiento : HttpContext.GetEstablecimiento();
+        var platillos = await _menuService.GetPlatillosAsync(categoria_id, disponible, q, estId);
         return Ok(platillos);
     }
 
