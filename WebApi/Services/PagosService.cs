@@ -98,6 +98,15 @@ public class PagosService
                 orden.Mesa.Activa = true;
             }
 
+            // Insumos de la sucursal de la orden, indexados por nombre. La receta
+            // define cantidades con un insumo cualquiera; al vender rebajamos el
+            // insumo de LA SUCURSAL de la orden (mismos nombres en cada sucursal).
+            var insumosSucursal = orden.EstablecimientoId == null
+                ? new Dictionary<string, AccesoDatos.Models.Insumo>()
+                : await _context.Insumos
+                    .Where(i => i.EstablecimientoId == orden.EstablecimientoId)
+                    .ToDictionaryAsync(i => i.Nombre, i => i);
+
             foreach (var item in orden.OrdenItems)
             {
                 if (item.Platillo?.Receta == null || !item.Platillo.Receta.Any())
@@ -107,12 +116,16 @@ public class PagosService
                 {
                     var cantidadTotal = receta.Cantidad * item.Cantidad;
 
+                    // Resolver al insumo de la sucursal por nombre; si no hay, usar el de la receta
+                    var insumoObjetivo = insumosSucursal.TryGetValue(receta.Insumo.Nombre, out var iSuc)
+                        ? iSuc : receta.Insumo;
+
                     var movimiento = new InsumosMovimiento
                     {
-                        InsumoId = receta.InsumoId,
+                        InsumoId = insumoObjetivo.Id,
                         Tipo = "salida",
                         Cantidad = cantidadTotal,
-                        CostoPorUnidad = receta.Insumo.CostoPorUnidad,
+                        CostoPorUnidad = insumoObjetivo.CostoPorUnidad,
                         Motivo = $"Venta - Orden {orden.Id}",
                         OrdenId = orden.Id,
                         UsuarioId = usuarioId,
@@ -121,7 +134,7 @@ public class PagosService
 
                     _context.InsumosMovimientos.Add(movimiento);
 
-                    receta.Insumo.StockActual -= cantidadTotal;
+                    insumoObjetivo.StockActual -= cantidadTotal;
                 }
             }
 

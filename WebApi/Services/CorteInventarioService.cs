@@ -20,6 +20,9 @@ public class CorteInventarioService
     /// </summary>
     private async Task<Dictionary<string, decimal>> VendidoTeoricoAsync(string turnoId)
     {
+        var turno = await _context.Turnos.FindAsync(turnoId);
+        var establecimientoId = turno?.EstablecimientoId;
+
         // Items vendidos (órdenes pagadas del turno) con su platillo
         var items = await _context.OrdenItems
             .Where(i => i.Orden.TurnoId == turnoId && i.Orden.Estado == "pagado" && i.PlatilloId != null)
@@ -30,11 +33,19 @@ public class CorteInventarioService
 
         var platilloIds = items.Select(i => i.PlatilloId!).Distinct().ToList();
         var recetas = await _context.Recetas
+            .Include(r => r.Insumo)
             .Where(r => platilloIds.Contains(r.PlatilloId))
             .ToListAsync();
 
         var recetasPorPlatillo = recetas.GroupBy(r => r.PlatilloId)
             .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Nombre -> insumoId de la sucursal del turno (para atribuir al insumo correcto)
+        var insumosSucursal = string.IsNullOrEmpty(establecimientoId)
+            ? new Dictionary<string, string>()
+            : await _context.Insumos
+                .Where(i => i.EstablecimientoId == establecimientoId)
+                .ToDictionaryAsync(i => i.Nombre, i => i.Id);
 
         var teorico = new Dictionary<string, decimal>();
         foreach (var it in items)
@@ -42,8 +53,10 @@ public class CorteInventarioService
             if (!recetasPorPlatillo.TryGetValue(it.PlatilloId!, out var recs)) continue;
             foreach (var r in recs)
             {
-                teorico.TryGetValue(r.InsumoId, out var acc);
-                teorico[r.InsumoId] = acc + r.Cantidad * it.Cantidad;
+                // Resolver al insumo de la sucursal por nombre; fallback al de la receta
+                var insumoId = insumosSucursal.TryGetValue(r.Insumo.Nombre, out var id) ? id : r.InsumoId;
+                teorico.TryGetValue(insumoId, out var acc);
+                teorico[insumoId] = acc + r.Cantidad * it.Cantidad;
             }
         }
         return teorico;
