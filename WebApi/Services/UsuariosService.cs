@@ -23,7 +23,17 @@ public class UsuariosService
             .OrderBy(u => u.Nombre)
             .ToListAsync();
 
-        return usuarios.Select(MapToDto).ToList();
+        // Sucursales asignadas a cada usuario (tabla puente), en un solo query
+        var ids = usuarios.Select(u => u.Id).ToList();
+        var porUsuario = (await _context.UsuariosEstablecimientos
+                .Where(ue => ids.Contains(ue.UsuarioId))
+                .ToListAsync())
+            .GroupBy(ue => ue.UsuarioId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.EstablecimientoId).ToList());
+
+        return usuarios
+            .Select(u => MapToDto(u, porUsuario.TryGetValue(u.Id, out var l) ? l : new List<string>()))
+            .ToList();
     }
 
     public async Task<UsuarioDto?> GetUsuarioByIdAsync(string id)
@@ -35,7 +45,12 @@ public class UsuariosService
         if (usuario == null)
             return null;
 
-        return MapToDto(usuario);
+        var establecimientoIds = await _context.UsuariosEstablecimientos
+            .Where(ue => ue.UsuarioId == id)
+            .Select(ue => ue.EstablecimientoId)
+            .ToListAsync();
+
+        return MapToDto(usuario, establecimientoIds);
     }
 
     public async Task<UsuarioDto> CreateUsuarioAsync(CreateUsuarioDto dto)
@@ -45,11 +60,11 @@ public class UsuariosService
             throw new InvalidOperationException("El username ya existe");
 
         if (!System.Text.RegularExpressions.Regex.IsMatch(dto.Pin, @"^\d{4,8}$"))
-            throw new InvalidOperationException("El PIN debe ser de 4 a 8 dígitos numéricos");
+            throw new InvalidOperationException("El PIN debe ser de 4 a 8 dï¿½gitos numï¿½ricos");
 
         var rolesValidos = new[] { "admin", "supervisor", "mesero", "cocina", "caja" };
         if (!rolesValidos.Contains(dto.Rol))
-            throw new InvalidOperationException("Rol inválido");
+            throw new InvalidOperationException("Rol invï¿½lido");
 
         var pinHash = _hashService.HashPin(dto.Pin);
 
@@ -71,9 +86,14 @@ public class UsuariosService
             .ToListAsync();
 
         usuario.Modulos = modulos;
+
+        // Sucursales asignadas (tabla puente)
+        foreach (var estId in dto.EstablecimientoIds.Distinct())
+            _context.UsuariosEstablecimientos.Add(new UsuarioEstablecimiento { UsuarioId = usuario.Id, EstablecimientoId = estId });
+
         await _context.SaveChangesAsync();
 
-        return MapToDto(usuario);
+        return MapToDto(usuario, dto.EstablecimientoIds);
     }
 
     public async Task<UsuarioDto?> UpdateUsuarioAsync(string id, UpdateUsuarioDto dto)
@@ -100,7 +120,7 @@ public class UsuariosService
         if (!string.IsNullOrWhiteSpace(dto.Pin))
         {
             if (!System.Text.RegularExpressions.Regex.IsMatch(dto.Pin, @"^\d{4,8}$"))
-                throw new InvalidOperationException("El PIN debe ser de 4 a 8 dígitos numéricos");
+                throw new InvalidOperationException("El PIN debe ser de 4 a 8 dï¿½gitos numï¿½ricos");
 
             usuario.PinHash = _hashService.HashPin(dto.Pin);
         }
@@ -109,7 +129,7 @@ public class UsuariosService
         {
             var rolesValidos = new[] { "admin", "supervisor", "mesero", "cocina", "caja" };
             if (!rolesValidos.Contains(dto.Rol))
-                throw new InvalidOperationException("Rol inválido");
+                throw new InvalidOperationException("Rol invï¿½lido");
 
             usuario.RolId = dto.Rol;
         }
@@ -126,9 +146,27 @@ public class UsuariosService
             usuario.Modulos = modulos;
         }
 
+        // Sincronizar sucursales asignadas (reemplaza el set completo)
+        if (dto.EstablecimientoIds != null)
+        {
+            var actuales = await _context.UsuariosEstablecimientos
+                .Where(ue => ue.UsuarioId == id)
+                .ToListAsync();
+            _context.UsuariosEstablecimientos.RemoveRange(actuales);
+            await _context.SaveChangesAsync(); // borrar antes de reinsertar (PK compuesta)
+
+            foreach (var estId in dto.EstablecimientoIds.Distinct())
+                _context.UsuariosEstablecimientos.Add(new UsuarioEstablecimiento { UsuarioId = id, EstablecimientoId = estId });
+        }
+
         await _context.SaveChangesAsync();
 
-        return MapToDto(usuario);
+        var finalIds = dto.EstablecimientoIds ?? await _context.UsuariosEstablecimientos
+            .Where(ue => ue.UsuarioId == id)
+            .Select(ue => ue.EstablecimientoId)
+            .ToListAsync();
+
+        return MapToDto(usuario, finalIds);
     }
 
     public async Task<bool> DeleteUsuarioAsync(string id, string currentUserId)
@@ -164,7 +202,7 @@ public class UsuariosService
         return MapToDto(usuario);
     }
 
-    private UsuarioDto MapToDto(Usuario usuario)
+    private UsuarioDto MapToDto(Usuario usuario, List<string>? establecimientoIds = null)
     {
         return new UsuarioDto
         {
@@ -174,6 +212,7 @@ public class UsuariosService
             Rol = usuario.RolId,
             Activo = usuario.Activo,
             Modules = usuario.Modulos.Select(m => m.Id).ToList(),
+            EstablecimientoIds = establecimientoIds ?? new List<string>(),
             CreadoEn = null
         };
     }
