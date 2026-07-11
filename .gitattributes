@@ -1,0 +1,7 @@
+# Estos archivos corren en Linux (VPS): forzar fin de línea LF aunque se
+# editen en Windows, o el shell fallaría con "bad interpreter: ...^M".
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+Caddyfile   text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
