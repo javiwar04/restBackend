@@ -1,0 +1,54 @@
+# Deploy del backend en el VPS Contabo.
+# Servicios: SQL Server (BD) + backend .NET + Caddy (proxy inverso con HTTPS).
+# El backend NO expone puerto público: solo se llega a él a través de Caddy.
+#
+# Uso:
+#   1) cp .env.example .env  y rellena las claves
+#   2) docker compose up -d --build
+#
+# Si YA tienes tu SQL Server en Docker, borra el servicio "sqlserver" de aquí y
+# apunta ConnectionStrings__DefaultConnection al que ya tienes.
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${SA_PASSWORD}"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    restart: unless-stopped
+    # Sin "ports": la BD solo es accesible dentro de la red de Docker.
+
+  backend:
+    build: ..
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=restSF;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true"
+      Jwt__Secret: "${JWT_SECRET}"
+      Cors__AllowedOrigins__0: "${FRONTEND_ORIGIN}"
+    depends_on:
+      - sqlserver
+    restart: unless-stopped
+    # Tampoco expone puerto: Caddy lo alcanza por la red interna (backend:8080).
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: "${API_DOMAIN}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  mssql-data:
+  caddy-data:
+  caddy-config:

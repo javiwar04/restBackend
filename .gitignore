@@ -19,3 +19,12 @@ packages/
 # Logs y temporales
 *.log
 TestResults/
+
+# Secretos de deploy — NUNCA subir (el .env.example sí se sube)
+.env
+.env.*
+!.env.example
+deploy/.env
+
+# Backups de BD
+*.bak

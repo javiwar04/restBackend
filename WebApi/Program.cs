@@ -1,5 +1,6 @@
 using AccesoDatos.Context;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -98,16 +99,34 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
-// CORS para Next.js
+// CORS para Next.js. Los orígenes permitidos vienen de config:
+//   Cors:AllowedOrigins  (array). En producción se define por variable de
+//   entorno, p.ej. Cors__AllowedOrigins__0=https://rest.warforgegt.com
+// Si no hay ninguno configurado, se permite el front local de desarrollo.
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (corsOrigins == null || corsOrigins.Length == 0)
+    corsOrigins = new[] { "http://localhost:3000" };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        policy.WithOrigins(corsOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
     });
+});
+
+// Detrás del proxy inverso (Caddy/nginx en el VPS) que termina el TLS:
+// confiar en X-Forwarded-Proto/For para que el backend sepa que la petición
+// original fue HTTPS. Se limpian las redes/proxies conocidos porque el
+// backend solo es accesible a través del proxy (no exponer su puerto).
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
 });
 
 // Controllers
@@ -144,6 +163,9 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+// Primero de todo: aplicar los headers reenviados por el proxy inverso.
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

@@ -1,0 +1,8 @@
+# Proxy inverso con HTTPS automático (Let's Encrypt).
+# Caddy saca y renueva el certificado solo para el dominio del backend.
+# El dominio se toma de la variable API_DOMAIN del .env (p.ej. api.warforgegt.com).
+# reverse_proxy pasa también los WebSockets de SignalR sin configuración extra.
+
+{$API_DOMAIN} {
+	reverse_proxy backend:8080
+}
