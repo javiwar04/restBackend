@@ -18,6 +18,23 @@ public class ReportesController : ControllerBase
         _reportesService = reportesService;
     }
 
+    // Guatemala es UTC-6 fijo (sin horario de verano). Zona portable, sin
+    // depender de la base de datos de zonas del sistema operativo.
+    private static readonly TimeZoneInfo GtTz =
+        TimeZoneInfo.CreateCustomTimeZone("GT", TimeSpan.FromHours(-6), "Guatemala (UTC-6)", "GT");
+
+    // Convierte el rango recibido (interpretado como hora LOCAL de Guatemala) a
+    // UTC, que es como se guardan los timestamps. Sin fechas => "hoy" en Guatemala.
+    private static (DateTime desdeUtc, DateTime hastaUtc) RangoUtc(DateTime? desde, DateTime? hasta)
+    {
+        var ahoraGt = TimeZoneInfo.ConvertTime(DateTime.UtcNow, GtTz);
+        var d = desde ?? ahoraGt.Date;
+        var h = hasta ?? ahoraGt.Date.AddDays(1).AddSeconds(-1);
+        var dUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(d, DateTimeKind.Unspecified), GtTz);
+        var hUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(h, DateTimeKind.Unspecified), GtTz);
+        return (dUtc, hUtc);
+    }
+
     // Sucursal para filtrar: query explícito (admin) o header. Sin ninguno = consolidado.
     private string? EstId(string? establecimiento)
         => !string.IsNullOrWhiteSpace(establecimiento) ? establecimiento : HttpContext.GetEstablecimiento();
@@ -28,10 +45,7 @@ public class ReportesController : ControllerBase
         [FromQuery] DateTime? hasta = null,
         [FromQuery] string? establecimiento = null)
     {
-        var hoy = DateTime.UtcNow.Date;
-        var fechaDesde = desde ?? hoy;
-        var fechaHasta = hasta ?? hoy.AddDays(1).AddSeconds(-1);
-
+        var (fechaDesde, fechaHasta) = RangoUtc(desde, hasta);
         var reporte = await _reportesService.GetReporteVentasAsync(fechaDesde, fechaHasta, EstId(establecimiento));
         return Ok(reporte);
     }
@@ -42,10 +56,7 @@ public class ReportesController : ControllerBase
         [FromQuery] DateTime? hasta = null,
         [FromQuery] string? establecimiento = null)
     {
-        var hoy = DateTime.UtcNow.Date;
-        var fechaDesde = desde ?? hoy;
-        var fechaHasta = hasta ?? hoy.AddDays(1).AddSeconds(-1);
-
+        var (fechaDesde, fechaHasta) = RangoUtc(desde, hasta);
         var reporte = await _reportesService.GetReportePlatillosAsync(fechaDesde, fechaHasta, EstId(establecimiento));
         return Ok(reporte);
     }
@@ -67,10 +78,7 @@ public class ReportesController : ControllerBase
         [FromQuery] DateTime? hasta = null,
         [FromQuery] string? establecimiento = null)
     {
-        var hoy = DateTime.UtcNow.Date;
-        var fechaDesde = desde ?? hoy;
-        var fechaHasta = hasta ?? hoy.AddDays(1).AddSeconds(-1);
-
+        var (fechaDesde, fechaHasta) = RangoUtc(desde, hasta);
         var reporte = await _reportesService.GetReporteMeserosAsync(fechaDesde, fechaHasta, EstId(establecimiento));
         return Ok(reporte);
     }
