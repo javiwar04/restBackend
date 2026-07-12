@@ -129,8 +129,14 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
-// Controllers
-builder.Services.AddControllers();
+// Controllers. Serializar todas las fechas como UTC con 'Z' para que el
+// frontend las interprete como el instante correcto (evita el desfase de +6h).
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new WebApi.Json.UtcDateTimeConverter());
+        options.JsonSerializerOptions.Converters.Add(new WebApi.Json.UtcNullableDateTimeConverter());
+    });
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
