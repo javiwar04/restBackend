@@ -30,7 +30,7 @@ public class InsumosService
 
     public async Task<List<InsumoDto>> GetInsumosAsync(string? establecimientoId = null)
     {
-        var query = _context.Insumos.AsQueryable();
+        var query = _context.Insumos.Where(i => i.Activo);
 
         // Si viene sucursal, solo sus insumos; si no, todos (vista admin)
         if (!string.IsNullOrEmpty(establecimientoId))
