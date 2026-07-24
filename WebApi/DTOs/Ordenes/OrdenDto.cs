@@ -39,6 +39,7 @@ public class ModificadorItemDto
 {
     public string GrupoNombre { get; set; } = null!;
     public string OpcionNombre { get; set; } = null!;
+    public string? OpcionId { get; set; }
     public decimal PrecioDelta { get; set; }
 }
 
@@ -67,6 +68,7 @@ public class CreateModificadorItemDto
 {
     public string GrupoNombre { get; set; } = null!;
     public string OpcionNombre { get; set; } = null!;
+    public string? OpcionId { get; set; }
     public decimal PrecioDelta { get; set; }
 }
 

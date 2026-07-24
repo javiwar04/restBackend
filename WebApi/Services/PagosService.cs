@@ -40,6 +40,8 @@ public class PagosService
                 .ThenInclude(i => i.Platillo)
                 .ThenInclude(p => p.Receta)
                 .ThenInclude(r => r.Insumo)
+                .Include(o => o.OrdenItems)
+                .ThenInclude(i => i.OrdenItemModificadores)
                 .FirstOrDefaultAsync(o => o.Id == dto.OrdenId);
 
             if (orden == null)
@@ -107,34 +109,66 @@ public class PagosService
                     .Where(i => i.EstablecimientoId == orden.EstablecimientoId)
                     .ToDictionaryAsync(i => i.Nombre, i => i);
 
+            var opcionIds = orden.OrdenItems
+                .SelectMany(i => i.OrdenItemModificadores)
+                .Select(m => m.OpcionId)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Select(id => id!)
+                .Distinct()
+                .ToList();
+
+            var opcionesInventario = opcionIds.Count == 0
+                ? new Dictionary<string, AccesoDatos.Models.ModificadorOpcion>()
+                : await _context.ModificadorOpciones
+                    .Include(o => o.Insumo)
+                    .Where(o => opcionIds.Contains(o.Id) && o.InsumoId != null && o.CantidadInsumo != null && o.CantidadInsumo > 0)
+                    .ToDictionaryAsync(o => o.Id, o => o);
+
+            AccesoDatos.Models.Insumo ResolverInsumoSucursal(AccesoDatos.Models.Insumo insumo)
+                => insumosSucursal.TryGetValue(insumo.Nombre, out var iSuc) ? iSuc : insumo;
+
+            void RegistrarSalida(AccesoDatos.Models.Insumo insumo, decimal cantidadTotal, string motivo)
+            {
+                if (cantidadTotal <= 0) return;
+
+                var movimiento = new InsumosMovimiento
+                {
+                    InsumoId = insumo.Id,
+                    Tipo = "salida",
+                    Cantidad = cantidadTotal,
+                    CostoPorUnidad = insumo.CostoPorUnidad,
+                    Motivo = motivo,
+                    OrdenId = orden.Id,
+                    UsuarioId = usuarioId,
+                    RegistradoEn = DateTime.UtcNow
+                };
+
+                _context.InsumosMovimientos.Add(movimiento);
+                insumo.StockActual -= cantidadTotal;
+            }
+
             foreach (var item in orden.OrdenItems)
             {
-                if (item.Platillo?.Receta == null || !item.Platillo.Receta.Any())
-                    continue;
-
-                foreach (var receta in item.Platillo.Receta)
+                if (item.Platillo?.Receta != null && item.Platillo.Receta.Any())
                 {
-                    var cantidadTotal = receta.Cantidad * item.Cantidad;
-
-                    // Resolver al insumo de la sucursal por nombre; si no hay, usar el de la receta
-                    var insumoObjetivo = insumosSucursal.TryGetValue(receta.Insumo.Nombre, out var iSuc)
-                        ? iSuc : receta.Insumo;
-
-                    var movimiento = new InsumosMovimiento
+                    foreach (var receta in item.Platillo.Receta)
                     {
-                        InsumoId = insumoObjetivo.Id,
-                        Tipo = "salida",
-                        Cantidad = cantidadTotal,
-                        CostoPorUnidad = insumoObjetivo.CostoPorUnidad,
-                        Motivo = $"Venta - Orden {orden.Id}",
-                        OrdenId = orden.Id,
-                        UsuarioId = usuarioId,
-                        RegistradoEn = DateTime.UtcNow
-                    };
+                        var cantidadTotal = receta.Cantidad * item.Cantidad;
 
-                    _context.InsumosMovimientos.Add(movimiento);
+                        // Resolver al insumo de la sucursal por nombre; si no hay, usar el de la receta
+                        var insumoObjetivo = ResolverInsumoSucursal(receta.Insumo);
+                        RegistrarSalida(insumoObjetivo, cantidadTotal, $"Venta - Orden {orden.Id}");
+                    }
+                }
 
-                    insumoObjetivo.StockActual -= cantidadTotal;
+                foreach (var mod in item.OrdenItemModificadores)
+                {
+                    if (mod.OpcionId == null || !opcionesInventario.TryGetValue(mod.OpcionId, out var opcion) || opcion.Insumo == null)
+                        continue;
+
+                    var insumoObjetivo = ResolverInsumoSucursal(opcion.Insumo);
+                    var cantidadTotal = (opcion.CantidadInsumo ?? 0) * item.Cantidad;
+                    RegistrarSalida(insumoObjetivo, cantidadTotal, $"Venta modificador {mod.GrupoNombre}: {mod.OpcionNombre} - Orden {orden.Id}");
                 }
             }
 

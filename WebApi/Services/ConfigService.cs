@@ -43,7 +43,7 @@ public class ConfigService
             var est = await _context.Establecimientos.FindAsync(establecimientoId);
             if (est != null)
             {
-                dto.Nombre = est.Nombre;
+                dto.SucursalNombre = est.Nombre;
                 if (!string.IsNullOrWhiteSpace(est.Direccion)) dto.Direccion = est.Direccion;
                 if (!string.IsNullOrWhiteSpace(est.Telefono)) dto.Telefono = est.Telefono;
             }
@@ -395,11 +395,15 @@ public class ConfigService
             return null;
 
         var negocio = await _context.ConfigNegocios.FirstOrDefaultAsync();
+        var sucursal = string.IsNullOrEmpty(orden.EstablecimientoId)
+            ? null
+            : await _context.Establecimientos.FindAsync(orden.EstablecimientoId);
 
         return new TicketReimpresionDto
         {
             OrdenId = orden.Id,
             NegocioNombre = negocio?.Nombre ?? "Restaurante",
+            SucursalNombre = sucursal?.Nombre,
             NegocioDireccion = negocio?.Direccion,
             NegocioTelefono = negocio?.Telefono,
             TicketHeader = negocio?.TicketEncabezado,

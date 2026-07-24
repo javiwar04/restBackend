@@ -25,8 +25,8 @@ public class CorteInventarioService
 
         // Items vendidos (órdenes pagadas del turno) con su platillo
         var items = await _context.OrdenItems
+            .Include(i => i.OrdenItemModificadores)
             .Where(i => i.Orden.TurnoId == turnoId && i.Orden.Estado == "pagado" && i.PlatilloId != null)
-            .Select(i => new { i.PlatilloId, i.Cantidad })
             .ToListAsync();
 
         if (items.Count == 0) return new Dictionary<string, decimal>();
@@ -39,6 +39,21 @@ public class CorteInventarioService
 
         var recetasPorPlatillo = recetas.GroupBy(r => r.PlatilloId)
             .ToDictionary(g => g.Key, g => g.ToList());
+
+        var opcionIds = items
+            .SelectMany(i => i.OrdenItemModificadores)
+            .Select(m => m.OpcionId)
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Select(id => id!)
+            .Distinct()
+            .ToList();
+
+        var opcionesInventario = opcionIds.Count == 0
+            ? new Dictionary<string, AccesoDatos.Models.ModificadorOpcion>()
+            : await _context.ModificadorOpciones
+                .Include(o => o.Insumo)
+                .Where(o => opcionIds.Contains(o.Id) && o.InsumoId != null && o.CantidadInsumo != null && o.CantidadInsumo > 0)
+                .ToDictionaryAsync(o => o.Id, o => o);
 
         // Nombre -> insumoId de la sucursal del turno (para atribuir al insumo correcto)
         var insumosSucursal = string.IsNullOrEmpty(establecimientoId)
@@ -57,6 +72,17 @@ public class CorteInventarioService
                 var insumoId = insumosSucursal.TryGetValue(r.Insumo.Nombre, out var id) ? id : r.InsumoId;
                 teorico.TryGetValue(insumoId, out var acc);
                 teorico[insumoId] = acc + r.Cantidad * it.Cantidad;
+            }
+
+            foreach (var mod in it.OrdenItemModificadores)
+            {
+                if (mod.OpcionId == null || !opcionesInventario.TryGetValue(mod.OpcionId, out var opt) || opt.Insumo == null)
+                    continue;
+
+                var insumoId = insumosSucursal.TryGetValue(opt.Insumo.Nombre, out var id) ? id : opt.InsumoId;
+                if (string.IsNullOrEmpty(insumoId)) continue;
+                teorico.TryGetValue(insumoId, out var acc);
+                teorico[insumoId] = acc + (opt.CantidadInsumo ?? 0) * it.Cantidad;
             }
         }
         return teorico;

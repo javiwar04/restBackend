@@ -3,6 +3,7 @@ namespace WebApi.DTOs.Config;
 public class ConfigNegocioDto
 {
     public string Nombre { get; set; } = null!;
+    public string? SucursalNombre { get; set; }
     public string? Rfc { get; set; }
     public string? Direccion { get; set; }
     public string? Telefono { get; set; }
@@ -116,6 +117,7 @@ public class TicketReimpresionDto
 {
     public string OrdenId { get; set; } = null!;
     public string NegocioNombre { get; set; } = null!;
+    public string? SucursalNombre { get; set; }
     public string? NegocioDireccion { get; set; }
     public string? NegocioTelefono { get; set; }
     public string? TicketHeader { get; set; }

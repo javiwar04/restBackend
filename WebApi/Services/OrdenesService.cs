@@ -148,6 +148,7 @@ public class OrdenesService
                         OrdenItemId = item.Id,
                         GrupoNombre = modDto.GrupoNombre,
                         OpcionNombre = modDto.OpcionNombre,
+                        OpcionId = modDto.OpcionId,
                         PrecioDelta = modDto.PrecioDelta
                     };
 
@@ -283,6 +284,7 @@ public class OrdenesService
                 OrdenItemId = item.Id,
                 GrupoNombre = modDto.GrupoNombre,
                 OpcionNombre = modDto.OpcionNombre,
+                OpcionId = modDto.OpcionId,
                 PrecioDelta = modDto.PrecioDelta
             };
 
@@ -418,6 +420,7 @@ public class OrdenesService
                 {
                     GrupoNombre = m.GrupoNombre,
                     OpcionNombre = m.OpcionNombre,
+                    OpcionId = m.OpcionId,
                     PrecioDelta = m.PrecioDelta
                 }).ToList()
             }).ToList()

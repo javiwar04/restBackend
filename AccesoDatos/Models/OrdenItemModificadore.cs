@@ -13,6 +13,8 @@ public partial class OrdenItemModificadore
 
     public string OpcionNombre { get; set; } = null!;
 
+    public string? OpcionId { get; set; }
+
     public decimal PrecioDelta { get; set; }
 
     public virtual OrdenItem OrdenItem { get; set; } = null!;

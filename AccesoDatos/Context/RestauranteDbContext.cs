@@ -669,6 +669,9 @@ public partial class RestauranteDbContext : DbContext
             entity.Property(e => e.OpcionNombre)
                 .HasMaxLength(80)
                 .HasColumnName("opcion_nombre");
+            entity.Property(e => e.OpcionId)
+                .HasMaxLength(36)
+                .HasColumnName("opcion_id");
             entity.Property(e => e.OrdenItemId).HasColumnName("orden_item_id");
             entity.Property(e => e.PrecioDelta)
                 .HasColumnType("decimal(8, 2)")
@@ -1323,6 +1326,10 @@ public partial class RestauranteDbContext : DbContext
             entity.Property(e => e.PrecioDelta)
                 .HasColumnType("decimal(10, 2)")
                 .HasDefaultValue(0);
+            entity.Property(e => e.InsumoId)
+                .HasMaxLength(36);
+            entity.Property(e => e.CantidadInsumo)
+                .HasColumnType("decimal(12, 4)");
 
             entity.Property(e => e.EsDefault)
                 .HasDefaultValue(false);
@@ -1338,6 +1345,12 @@ public partial class RestauranteDbContext : DbContext
                 .HasForeignKey(d => d.GrupoId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_ModificadorOpciones_Grupo");
+
+            entity.HasOne(d => d.Insumo)
+                .WithMany()
+                .HasForeignKey(d => d.InsumoId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_ModificadorOpciones_Insumo");
         });
 
         OnModelCreatingPartial(modelBuilder);

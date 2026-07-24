@@ -82,4 +82,15 @@ public class ReportesController : ControllerBase
         var reporte = await _reportesService.GetReporteMeserosAsync(fechaDesde, fechaHasta, EstId(establecimiento));
         return Ok(reporte);
     }
+
+    [HttpGet("inventario")]
+    public async Task<IActionResult> GetReporteInventario(
+        [FromQuery] DateTime? desde = null,
+        [FromQuery] DateTime? hasta = null,
+        [FromQuery] string? establecimiento = null)
+    {
+        var (fechaDesde, fechaHasta) = RangoUtc(desde, hasta);
+        var reporte = await _reportesService.GetReporteInventarioAsync(fechaDesde, fechaHasta, EstId(establecimiento));
+        return Ok(reporte);
+    }
 }

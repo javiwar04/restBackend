@@ -32,6 +32,9 @@ public class ModificadorOpcionDto
     public string Id { get; set; } = null!;
     public string Nombre { get; set; } = null!;
     public decimal PrecioDelta { get; set; }
+    public string? InsumoId { get; set; }
+    public string? InsumoNombre { get; set; }
+    public decimal? CantidadInsumo { get; set; }
     public bool EsDefault { get; set; }
     public bool Activo { get; set; }
     public int Orden { get; set; }
@@ -77,6 +80,8 @@ public class CreateModificadorOpcionDto
 {
     public string Nombre { get; set; } = null!;
     public decimal PrecioDelta { get; set; }
+    public string? InsumoId { get; set; }
+    public decimal? CantidadInsumo { get; set; }
     public bool EsDefault { get; set; }
     public bool Activo { get; set; } = true;
     public int Orden { get; set; }

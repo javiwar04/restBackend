@@ -333,6 +333,7 @@ public class MenuService
             var modificadoresPropios = await _context.ModificadorGrupos
                 .Where(g => g.PlatilloId == platilloId)
                 .Include(g => g.Opciones)
+                .ThenInclude(o => o.Insumo)
                 .OrderBy(g => g.Orden)
                 .ToListAsync();
 
@@ -356,6 +357,9 @@ public class MenuService
                                 Id = o.Id,
                                 Nombre = o.Nombre,
                                 PrecioDelta = o.PrecioDelta,
+                                InsumoId = o.InsumoId,
+                                InsumoNombre = o.Insumo?.Nombre,
+                                CantidadInsumo = o.CantidadInsumo,
                                 EsDefault = o.EsDefault,
                                 Activo = o.Activo,
                                 Orden = o.Orden
@@ -463,6 +467,8 @@ public class MenuService
                         GrupoId = nuevoGrupo.Id,
                         Nombre = opcionDto.Nombre,
                         PrecioDelta = opcionDto.PrecioDelta,
+                        InsumoId = string.IsNullOrWhiteSpace(opcionDto.InsumoId) ? null : opcionDto.InsumoId,
+                        CantidadInsumo = opcionDto.CantidadInsumo,
                         EsDefault = opcionDto.EsDefault,
                         Activo = opcionDto.Activo,
                         Orden = opcionDto.Orden

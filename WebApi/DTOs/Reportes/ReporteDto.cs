@@ -56,7 +56,41 @@ public class CorteCajaReportDto
     public decimal Diferencia { get; set; }
     public int TotalOrdenes { get; set; }
     public decimal TotalVentas { get; set; }
+    public string? Notas { get; set; }
     public Dictionary<string, decimal> PorMetodoPago { get; set; } = new();
+}
+
+public class InventarioReportDto
+{
+    public string Desde { get; set; } = null!;
+    public string Hasta { get; set; } = null!;
+    public decimal TotalEntradas { get; set; }
+    public decimal TotalSalidasVenta { get; set; }
+    public decimal TotalMermas { get; set; }
+    public decimal TotalAjustes { get; set; }
+    public decimal ValorSalidasVenta { get; set; }
+    public List<InsumoMovimientoResumenDto> Insumos { get; set; } = new();
+    public List<NecesidadInventarioDto> Necesidades { get; set; } = new();
+}
+
+public class InsumoMovimientoResumenDto
+{
+    public string InsumoId { get; set; } = null!;
+    public string InsumoNombre { get; set; } = null!;
+    public string Unidad { get; set; } = null!;
+    public decimal CantidadEntrada { get; set; }
+    public decimal CantidadSalidaVenta { get; set; }
+    public decimal CantidadMerma { get; set; }
+    public decimal CantidadAjuste { get; set; }
+    public decimal ValorSalidaVenta { get; set; }
+}
+
+public class NecesidadInventarioDto
+{
+    public string TurnoId { get; set; } = null!;
+    public string UsuarioNombre { get; set; } = null!;
+    public DateTime CerradoEn { get; set; }
+    public string Notas { get; set; } = null!;
 }
 
 public class MeserosReportDto

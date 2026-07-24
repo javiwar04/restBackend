@@ -154,7 +154,65 @@ public class ReportesService
             Diferencia = corte?.Diferencia ?? 0,
             TotalOrdenes = turno.TotalOrdenes,
             TotalVentas = turno.TotalVentas,
+            Notas = corte?.Notas ?? turno.Notas,
             PorMetodoPago = porMetodoPago
+        };
+    }
+
+    public async Task<InventarioReportDto> GetReporteInventarioAsync(DateTime desde, DateTime hasta, string? establecimientoId = null)
+    {
+        var movimientos = await _context.InsumosMovimientos
+            .Include(m => m.Insumo)
+            .Where(m => m.RegistradoEn >= desde &&
+                        m.RegistradoEn <= hasta &&
+                        (establecimientoId == null || m.Insumo.EstablecimientoId == establecimientoId))
+            .ToListAsync();
+
+        var insumos = movimientos
+            .GroupBy(m => new { m.InsumoId, m.Insumo.Nombre, m.Insumo.Unidad })
+            .Select(g => new InsumoMovimientoResumenDto
+            {
+                InsumoId = g.Key.InsumoId,
+                InsumoNombre = g.Key.Nombre,
+                Unidad = g.Key.Unidad,
+                CantidadEntrada = g.Where(m => m.Tipo == "entrada").Sum(m => m.Cantidad),
+                CantidadSalidaVenta = g.Where(m => m.Tipo == "salida" && m.Motivo.StartsWith("Venta")).Sum(m => m.Cantidad),
+                CantidadMerma = g.Where(m => m.Tipo == "merma").Sum(m => m.Cantidad),
+                CantidadAjuste = g.Where(m => m.Tipo == "ajuste").Sum(m => m.Cantidad),
+                ValorSalidaVenta = g.Where(m => m.Tipo == "salida" && m.Motivo.StartsWith("Venta"))
+                    .Sum(m => m.Cantidad * (m.CostoPorUnidad ?? 0))
+            })
+            .OrderByDescending(i => i.CantidadSalidaVenta)
+            .ThenBy(i => i.InsumoNombre)
+            .ToList();
+
+        var necesidades = await _context.CorteCajas
+            .Where(c => c.FechaFin >= desde &&
+                        c.FechaFin <= hasta &&
+                        c.Notas != null &&
+                        c.Notas != "" &&
+                        (establecimientoId == null || c.Turno == null || c.Turno.EstablecimientoId == establecimientoId))
+            .OrderByDescending(c => c.FechaFin)
+            .Select(c => new NecesidadInventarioDto
+            {
+                TurnoId = c.TurnoId ?? "",
+                UsuarioNombre = c.UsuarioNombre ?? "",
+                CerradoEn = c.FechaFin,
+                Notas = c.Notas ?? ""
+            })
+            .ToListAsync();
+
+        return new InventarioReportDto
+        {
+            Desde = desde.ToString("yyyy-MM-dd"),
+            Hasta = hasta.ToString("yyyy-MM-dd"),
+            TotalEntradas = movimientos.Where(m => m.Tipo == "entrada").Sum(m => m.Cantidad),
+            TotalSalidasVenta = movimientos.Where(m => m.Tipo == "salida" && m.Motivo.StartsWith("Venta")).Sum(m => m.Cantidad),
+            TotalMermas = movimientos.Where(m => m.Tipo == "merma").Sum(m => m.Cantidad),
+            TotalAjustes = movimientos.Where(m => m.Tipo == "ajuste").Sum(m => m.Cantidad),
+            ValorSalidasVenta = insumos.Sum(i => i.ValorSalidaVenta),
+            Insumos = insumos,
+            Necesidades = necesidades
         };
     }
 
