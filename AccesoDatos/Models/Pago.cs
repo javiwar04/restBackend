@@ -7,6 +7,8 @@ public partial class Pago
 {
     public string Id { get; set; } = null!;
 
+    public string? EstablecimientoId { get; set; }
+
     public string OrdenId { get; set; } = null!;
 
     public string? TurnoId { get; set; }
@@ -20,6 +22,10 @@ public partial class Pago
     public string? MeseroNombre { get; set; }
 
     public decimal MontoTotal { get; set; }
+
+    public int? TicketNumero { get; set; }
+
+    public string? TicketCorrelativo { get; set; }
 
     public bool Facturado { get; set; }
 

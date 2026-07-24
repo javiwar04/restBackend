@@ -19,6 +19,8 @@ public partial class Ordene
 
     public byte Comensales { get; set; }
 
+    public string ClienteNombre { get; set; } = "Consumidor Final";
+
     public string? UsuarioId { get; set; }
 
     public string? UsuarioNombre { get; set; }

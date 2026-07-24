@@ -107,6 +107,7 @@ public class OrdenesService
                 TipoServicio = dto.TipoServicio,
                 Estado = "pendiente",
                 Comensales = dto.Comensales,
+                ClienteNombre = NormalizarCliente(dto.ClienteNombre),
                 UsuarioId = usuarioId,
                 UsuarioNombre = usuarioNombre,
                 MeseroId = dto.MeseroId,
@@ -205,6 +206,7 @@ public class OrdenesService
         orden.Propina = dto.Propina;
         orden.Notas = dto.Notas;
         orden.Comensales = dto.Comensales;
+        orden.ClienteNombre = NormalizarCliente(dto.ClienteNombre);
 
         var subtotalConDescuento = Math.Max(0, orden.Subtotal - dto.Descuento);
         orden.Impuestos = subtotalConDescuento * ivaTasa;
@@ -397,6 +399,7 @@ public class OrdenesService
             TipoServicio = orden.TipoServicio,
             Estado = orden.Estado,
             Comensales = orden.Comensales,
+            ClienteNombre = NormalizarCliente(orden.ClienteNombre),
             UsuarioNombre = orden.UsuarioNombre,
             MeseroNombre = orden.MeseroNombre,
             Descuento = orden.Descuento,
@@ -425,5 +428,11 @@ public class OrdenesService
                 }).ToList()
             }).ToList()
         };
+    }
+
+    private static string NormalizarCliente(string? clienteNombre)
+    {
+        var value = (clienteNombre ?? "").Trim();
+        return string.IsNullOrWhiteSpace(value) ? "Consumidor Final" : value;
     }
 }

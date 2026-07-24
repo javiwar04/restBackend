@@ -8,6 +8,7 @@ public class OrdenDto
     public string TipoServicio { get; set; } = null!;
     public string Estado { get; set; } = null!;
     public byte Comensales { get; set; }
+    public string ClienteNombre { get; set; } = "Consumidor Final";
     public string? UsuarioNombre { get; set; }
     public string? MeseroNombre { get; set; }
     public decimal Descuento { get; set; }
@@ -50,6 +51,7 @@ public class CreateOrdenDto
     public byte Comensales { get; set; } = 1;
     public string? MeseroId { get; set; }
     public string? TurnoId { get; set; }
+    public string? ClienteNombre { get; set; }
     public string? Notas { get; set; }
     public List<CreateOrdenItemDto> Items { get; set; } = new();
 }
@@ -78,6 +80,7 @@ public class UpdateOrdenDto
     public decimal Propina { get; set; }
     public string? Notas { get; set; }
     public byte Comensales { get; set; }
+    public string? ClienteNombre { get; set; }
 }
 
 public class UpdateEstadoDto

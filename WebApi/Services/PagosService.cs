@@ -1,6 +1,7 @@
 using AccesoDatos.Context;
 using AccesoDatos.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using WebApi.DTOs.Pagos;
 
 namespace WebApi.Services;
@@ -30,7 +31,7 @@ public class PagosService
 
     public async Task<PagoDto> CreatePagoAsync(CreatePagoDto dto, string usuarioId, string usuarioNombre)
     {
-        using var transaction = await _context.Database.BeginTransactionAsync();
+        using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
         try
         {
@@ -50,6 +51,9 @@ public class PagosService
             if (orden.Estado == "pagado")
                 throw new InvalidOperationException("La orden ya est� pagada");
 
+            var ticketNumero = await GetSiguienteTicketNumeroAsync(orden.EstablecimientoId);
+            var ticketCorrelativo = await BuildTicketCorrelativoAsync(orden.EstablecimientoId, ticketNumero);
+
             var totalTenders = dto.Tenders.Sum(t => t.Monto);
             if (totalTenders < orden.Total)
                 throw new InvalidOperationException("El monto total de pagos es menor al total de la orden");
@@ -64,6 +68,7 @@ public class PagosService
             var pago = new Pago
             {
                 Id = Guid.NewGuid().ToString(),
+                EstablecimientoId = orden.EstablecimientoId,
                 OrdenId = dto.OrdenId,
                 TurnoId = dto.TurnoId,
                 MeseroId = dto.MeseroId,
@@ -71,6 +76,8 @@ public class PagosService
                 UsuarioId = usuarioId,
                 UsuarioNombre = usuarioNombre,
                 MontoTotal = orden.Total,
+                TicketNumero = ticketNumero,
+                TicketCorrelativo = ticketCorrelativo,
                 Facturado = false,
                 RegistradoEn = DateTime.UtcNow
             };
@@ -199,12 +206,15 @@ public class PagosService
             {
                 Id = pago.Id,
                 OrdenId = pago.OrdenId,
+                EstablecimientoId = pago.EstablecimientoId,
                 TurnoId = pago.TurnoId,
                 MeseroId = pago.MeseroId,
                 MeseroNombre = pago.MeseroNombre,
                 UsuarioId = pago.UsuarioId,
                 UsuarioNombre = pago.UsuarioNombre,
                 MontoTotal = pago.MontoTotal,
+                TicketNumero = pago.TicketNumero,
+                TicketCorrelativo = pago.TicketCorrelativo,
                 Facturado = pago.Facturado,
                 RegistradoEn = pago.RegistradoEn,
                 Tenders = dto.Tenders
@@ -249,12 +259,15 @@ public class PagosService
         {
             Id = p.Id,
             OrdenId = p.OrdenId,
+            EstablecimientoId = p.EstablecimientoId,
             TurnoId = p.TurnoId,
             MeseroId = p.MeseroId,
             MeseroNombre = p.MeseroNombre,
             UsuarioId = p.UsuarioId,
             UsuarioNombre = p.UsuarioNombre,
             MontoTotal = p.MontoTotal,
+            TicketNumero = p.TicketNumero,
+            TicketCorrelativo = p.TicketCorrelativo,
             Facturado = p.Facturado,
             RegistradoEn = p.RegistradoEn,
             Tenders = p.PagosDetalles.Select(d => new TenderDto
@@ -280,12 +293,15 @@ public class PagosService
         {
             Id = pago.Id,
             OrdenId = pago.OrdenId,
+            EstablecimientoId = pago.EstablecimientoId,
             TurnoId = pago.TurnoId,
             MeseroId = pago.MeseroId,
             MeseroNombre = pago.MeseroNombre,
             UsuarioId = pago.UsuarioId,
             UsuarioNombre = pago.UsuarioNombre,
             MontoTotal = pago.MontoTotal,
+            TicketNumero = pago.TicketNumero,
+            TicketCorrelativo = pago.TicketCorrelativo,
             Facturado = pago.Facturado,
             RegistradoEn = pago.RegistradoEn,
             Tenders = pago.PagosDetalles.Select(d => new TenderDto
@@ -309,5 +325,38 @@ public class PagosService
         await _context.SaveChangesAsync();
 
         return true;
+    }
+
+    private async Task<int> GetSiguienteTicketNumeroAsync(string? establecimientoId)
+    {
+        var ultimo = await _context.Pagos
+            .Where(p => p.EstablecimientoId == establecimientoId && p.TicketNumero != null)
+            .MaxAsync(p => (int?)p.TicketNumero) ?? 0;
+
+        return ultimo + 1;
+    }
+
+    private async Task<string> BuildTicketCorrelativoAsync(string? establecimientoId, int numero)
+    {
+        var nombreSucursal = string.IsNullOrWhiteSpace(establecimientoId)
+            ? null
+            : await _context.Establecimientos
+                .Where(e => e.Id == establecimientoId)
+                .Select(e => e.Nombre)
+                .FirstOrDefaultAsync();
+
+        var prefijo = BuildPrefijoSucursal(nombreSucursal);
+        return $"{prefijo}-{numero:000000}";
+    }
+
+    private static string BuildPrefijoSucursal(string? nombreSucursal)
+    {
+        var limpio = new string((nombreSucursal ?? "TCK")
+            .ToUpperInvariant()
+            .Where(char.IsLetterOrDigit)
+            .Take(3)
+            .ToArray());
+
+        return string.IsNullOrWhiteSpace(limpio) ? "TCK" : limpio.PadRight(3, 'X');
     }
 }

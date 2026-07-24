@@ -41,6 +41,7 @@ public class CocinaService
             TipoServicio = o.TipoServicio,
             Estado = o.Estado,
             Comensales = o.Comensales,
+            ClienteNombre = string.IsNullOrWhiteSpace(o.ClienteNombre) ? "Consumidor Final" : o.ClienteNombre,
             UsuarioNombre = o.UsuarioNombre,
             MeseroNombre = o.MeseroNombre,
             Descuento = o.Descuento,

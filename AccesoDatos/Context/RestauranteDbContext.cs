@@ -703,6 +703,10 @@ public partial class RestauranteDbContext : DbContext
             entity.Property(e => e.Comensales)
                 .HasDefaultValue((byte)1)
                 .HasColumnName("comensales");
+            entity.Property(e => e.ClienteNombre)
+                .HasMaxLength(160)
+                .HasDefaultValue("Consumidor Final")
+                .HasColumnName("cliente_nombre");
             entity.Property(e => e.CreadoEn)
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("creado_en");
@@ -776,10 +780,17 @@ public partial class RestauranteDbContext : DbContext
         {
             entity.HasIndex(e => e.OrdenId, "IX_Pagos_Orden");
 
+            entity.HasIndex(e => new { e.EstablecimientoId, e.TicketNumero }, "UX_Pagos_Establecimiento_TicketNumero")
+                .IsUnique()
+                .HasFilter("[establecimiento_id] IS NOT NULL AND [ticket_numero] IS NOT NULL");
+
             entity.Property(e => e.Id)
                 .HasMaxLength(36)
                 .HasDefaultValueSql("(newid())")
                 .HasColumnName("id");
+            entity.Property(e => e.EstablecimientoId)
+                .HasMaxLength(36)
+                .HasColumnName("establecimiento_id");
             entity.Property(e => e.Facturado).HasColumnName("facturado");
             entity.Property(e => e.MeseroId)
                 .HasMaxLength(36)
@@ -790,6 +801,10 @@ public partial class RestauranteDbContext : DbContext
             entity.Property(e => e.MontoTotal)
                 .HasColumnType("decimal(10, 2)")
                 .HasColumnName("monto_total");
+            entity.Property(e => e.TicketNumero).HasColumnName("ticket_numero");
+            entity.Property(e => e.TicketCorrelativo)
+                .HasMaxLength(40)
+                .HasColumnName("ticket_correlativo");
             entity.Property(e => e.OrdenId)
                 .HasMaxLength(36)
                 .HasColumnName("orden_id");
