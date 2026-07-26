@@ -61,11 +61,33 @@ public class InsumosService
 
     public async Task<InsumoDto> CreateInsumoAsync(CreateInsumoDto dto, string? establecimientoId)
     {
+        var nombreNormalizado = NormalizarTexto(dto.Nombre);
+        var unidadNormalizada = NormalizarTexto(dto.Unidad);
+        var existente = await _context.Insumos
+            .Where(i => i.EstablecimientoId == establecimientoId)
+            .Where(i => i.Nombre.Trim().ToUpper() == nombreNormalizado && i.Unidad.Trim().ToUpper() == unidadNormalizada)
+            .OrderByDescending(i => i.Activo)
+            .ThenByDescending(i => i.StockActual)
+            .ThenBy(i => i.CreadoEn)
+            .FirstOrDefaultAsync();
+
+        if (existente != null)
+        {
+            existente.Activo = true;
+            existente.Nombre = dto.Nombre.Trim();
+            existente.Unidad = dto.Unidad.Trim();
+            existente.StockMinimo = dto.StockMinimo;
+            existente.CostoPorUnidad = dto.CostoUnitario;
+            await _context.SaveChangesAsync();
+
+            return Map(existente);
+        }
+
         var insumo = new Insumo
         {
             Id = Guid.NewGuid().ToString(),
-            Nombre = dto.Nombre,
-            Unidad = dto.Unidad,
+            Nombre = dto.Nombre.Trim(),
+            Unidad = dto.Unidad.Trim(),
             StockActual = dto.StockActual,
             StockMinimo = dto.StockMinimo,
             CostoPorUnidad = dto.CostoUnitario,
@@ -216,5 +238,10 @@ public class InsumosService
             OrdenId = m.OrdenId,
             RegistradoEn = m.RegistradoEn
         }).ToList();
+    }
+
+    private static string NormalizarTexto(string valor)
+    {
+        return valor.Trim().ToUpperInvariant();
     }
 }
