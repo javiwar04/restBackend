@@ -56,11 +56,18 @@ public class CorteInventarioService
                 .ToDictionaryAsync(o => o.Id, o => o);
 
         // Nombre -> insumoId de la sucursal del turno (para atribuir al insumo correcto)
-        var insumosSucursal = string.IsNullOrEmpty(establecimientoId)
-            ? new Dictionary<string, string>()
+        var insumosSucursalLista = string.IsNullOrEmpty(establecimientoId)
+            ? new List<AccesoDatos.Models.Insumo>()
             : await _context.Insumos
                 .Where(i => i.EstablecimientoId == establecimientoId)
-                .ToDictionaryAsync(i => i.Nombre, i => i.Id);
+                .OrderByDescending(i => i.Activo)
+                .ThenByDescending(i => i.StockActual)
+                .ThenBy(i => i.CreadoEn)
+                .ToListAsync();
+
+        var insumosSucursal = insumosSucursalLista
+            .GroupBy(i => NormalizarNombreInsumo(i.Nombre))
+            .ToDictionary(g => g.Key, g => g.First().Id);
 
         var teorico = new Dictionary<string, decimal>();
         foreach (var it in items)
@@ -69,7 +76,7 @@ public class CorteInventarioService
             foreach (var r in recs)
             {
                 // Resolver al insumo de la sucursal por nombre; fallback al de la receta
-                var insumoId = insumosSucursal.TryGetValue(r.Insumo.Nombre, out var id) ? id : r.InsumoId;
+                var insumoId = insumosSucursal.TryGetValue(NormalizarNombreInsumo(r.Insumo.Nombre), out var id) ? id : r.InsumoId;
                 teorico.TryGetValue(insumoId, out var acc);
                 teorico[insumoId] = acc + r.Cantidad * it.Cantidad;
             }
@@ -79,7 +86,7 @@ public class CorteInventarioService
                 if (mod.OpcionId == null || !opcionesInventario.TryGetValue(mod.OpcionId, out var opt) || opt.Insumo == null)
                     continue;
 
-                var insumoId = insumosSucursal.TryGetValue(opt.Insumo.Nombre, out var id) ? id : opt.InsumoId;
+                var insumoId = insumosSucursal.TryGetValue(NormalizarNombreInsumo(opt.Insumo.Nombre), out var id) ? id : opt.InsumoId;
                 if (string.IsNullOrEmpty(insumoId)) continue;
                 teorico.TryGetValue(insumoId, out var acc);
                 teorico[insumoId] = acc + (opt.CantidadInsumo ?? 0) * it.Cantidad;
@@ -235,5 +242,10 @@ public class CorteInventarioService
                 ValorMerma = d.Merma * d.CostoUnitario
             }).ToList()
         };
+    }
+
+    private static string NormalizarNombreInsumo(string nombre)
+    {
+        return nombre.Trim().ToUpperInvariant();
     }
 }

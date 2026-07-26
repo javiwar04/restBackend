@@ -110,11 +110,18 @@ public class PagosService
             // Insumos de la sucursal de la orden, indexados por nombre. La receta
             // define cantidades con un insumo cualquiera; al vender rebajamos el
             // insumo de LA SUCURSAL de la orden (mismos nombres en cada sucursal).
-            var insumosSucursal = orden.EstablecimientoId == null
-                ? new Dictionary<string, AccesoDatos.Models.Insumo>()
+            var insumosSucursalLista = orden.EstablecimientoId == null
+                ? new List<AccesoDatos.Models.Insumo>()
                 : await _context.Insumos
                     .Where(i => i.EstablecimientoId == orden.EstablecimientoId)
-                    .ToDictionaryAsync(i => i.Nombre, i => i);
+                    .OrderByDescending(i => i.Activo)
+                    .ThenByDescending(i => i.StockActual)
+                    .ThenBy(i => i.CreadoEn)
+                    .ToListAsync();
+
+            var insumosSucursal = insumosSucursalLista
+                .GroupBy(i => NormalizarNombreInsumo(i.Nombre))
+                .ToDictionary(g => g.Key, g => g.First());
 
             var opcionIds = orden.OrdenItems
                 .SelectMany(i => i.OrdenItemModificadores)
@@ -132,7 +139,7 @@ public class PagosService
                     .ToDictionaryAsync(o => o.Id, o => o);
 
             AccesoDatos.Models.Insumo ResolverInsumoSucursal(AccesoDatos.Models.Insumo insumo)
-                => insumosSucursal.TryGetValue(insumo.Nombre, out var iSuc) ? iSuc : insumo;
+                => insumosSucursal.TryGetValue(NormalizarNombreInsumo(insumo.Nombre), out var iSuc) ? iSuc : insumo;
 
             void RegistrarSalida(AccesoDatos.Models.Insumo insumo, decimal cantidadTotal, string motivo)
             {
@@ -358,5 +365,10 @@ public class PagosService
             .ToArray());
 
         return string.IsNullOrWhiteSpace(limpio) ? "TCK" : limpio.PadRight(3, 'X');
+    }
+
+    private static string NormalizarNombreInsumo(string nombre)
+    {
+        return nombre.Trim().ToUpperInvariant();
     }
 }
